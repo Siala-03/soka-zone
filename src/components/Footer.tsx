@@ -111,7 +111,7 @@ export function Footer({ onNavigate }: FooterProps) {
             <ul className="space-y-4 text-sm">
               <li className="flex items-start gap-3">
                 <MapPin className="w-5 h-5 text-green-500 flex-shrink-0" />
-                <span>123 Sports Avenue, Kigali, Rwanda</span>
+                <span>KK 102 St, Sanitas Kanombe</span>
               </li>
               <li className="flex items-center gap-3">
                 <Phone className="w-5 h-5 text-green-500 flex-shrink-0" />
