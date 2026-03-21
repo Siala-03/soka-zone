@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { CheckCircle2, Calendar as CalendarIcon, Clock, CalendarCheck, CreditCard, AlertCircle } from 'lucide-react';
 
 // Local assets
-const heroImage = "/assets/DSC02320.jpg";
+const heroImage = "/assets/pitch2.webp";
 
 export function BookPage() {
   const [selectedDate, setSelectedDate] = useState<string>('');

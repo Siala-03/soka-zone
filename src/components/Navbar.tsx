@@ -49,14 +49,10 @@ export function Navbar({ currentPage, onNavigate }: NavbarProps) {
             <div className="flex items-center gap-2">
               {/* Logo */}
               <img
-                src="/assets/logo.jpeg"
+                src="/assets/logo-new.webp"
                 alt="Soka Zone Logo"
-                className="w-10 h-10 object-contain"
+                className="h-16 w-auto object-contain"
               />
-              <div className="flex flex-col leading-none font-bold text-xl tracking-tighter">
-                <span>SOKA</span>
-                <span>ZONE</span>
-              </div>
             </div>
           </div>
 
@@ -71,9 +67,6 @@ export function Navbar({ currentPage, onNavigate }: NavbarProps) {
                 {link.name}
               </button>
             )}
-            <button className="bg-green-600 hover:bg-green-700 text-white px-6 py-2.5 rounded-full font-medium transition-colors">
-              Login
-            </button>
           </div>
 
           {/* Mobile Menu Button */}
@@ -106,11 +99,6 @@ export function Navbar({ currentPage, onNavigate }: NavbarProps) {
                 {link.name}
               </button>
           )}
-            <div className="pt-4 px-3">
-              <button className="w-full bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-full font-medium transition-colors shadow-sm text-sm">
-                Login
-              </button>
-            </div>
           </div>
         </div>
       }

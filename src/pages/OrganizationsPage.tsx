@@ -2,14 +2,14 @@ import React from 'react';
 import { PageId } from '../components/Navbar';
 
 // Local assets
-const heroImage = "/assets/DSC02424 (1).jpg";
-const universityImage = "/assets/DSC02259 (1).jpg";
-const corporateImage = "/assets/DSC02308 (1).jpg";
-const internationalImage = "/assets/DSC02616.jpg";
-const schedulingImage = "/assets/DSC02336.jpg";
-const managementImage = "/assets/DSC02260.jpg";
-const paymentImage = "/assets/DSC02420.jpg";
-const communityImage = "/assets/DSC02581 (1).jpg";
+const heroImage = "/assets/pitch4.webp";
+const universityImage = "/assets/tournament.webp";
+const corporateImage = "/assets/sponsors.webp";
+const internationalImage = "/assets/partners.webp";
+const schedulingImage = "/assets/facility.webp";
+const managementImage = "/assets/players1.webp";
+const paymentImage = "/assets/pitch3.webp";
+const communityImage = "/assets/fans1.webp";
 
 interface OrganizationsPageProps {
   onNavigate: (page: PageId) => void;

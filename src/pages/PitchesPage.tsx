@@ -2,13 +2,13 @@ import React from 'react';
 import { PageId } from '../components/Navbar';
 
 // Local assets
-const heroImage = "/assets/DSC02320.jpg";
-const turfImage = "/assets/DSC02336.jpg";
-const actionImage = "/assets/DSC02420.jpg";
-const nightImage = "/assets/DSC02384.jpg";
-const matchImage = "/assets/DSC02581 (1).jpg";
-const lightingImage = "/assets/DSC02384.jpg";
-const facilitiesImage = "/assets/DSC02618.jpg";
+const heroImage = "/assets/pitch1.webp";
+const turfImage = "/assets/pitch2.webp";
+const actionImage = "/assets/pitch3.webp";
+const nightImage = "/assets/night.webp";
+const matchImage = "/assets/players4.webp";
+const lightingImage = "/assets/night.webp";
+const facilitiesImage = "/assets/facility.webp";
 
 interface PitchesPageProps {
   onNavigate: (page: PageId) => void;

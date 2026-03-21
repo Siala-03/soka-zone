@@ -21,14 +21,10 @@ export function Footer({ onNavigate }: FooterProps) {
               onClick={(e) => handleNavigate(e, 'home')}>
               
               <img
-                src="/assets/logo.jpeg"
+                src="/assets/logo-new.webp"
                 alt="Soka Zone Logo"
-                className="w-10 h-10 object-contain"
+                className="h-12 w-auto object-contain"
               />
-              <div className="flex flex-col leading-none font-bold text-lg tracking-tight">
-                <span>SOKA</span>
-                <span>ZONE</span>
-              </div>
             </div>
             <p className="text-sm leading-relaxed">
               Professional football pitches for serious players in Kigali. We

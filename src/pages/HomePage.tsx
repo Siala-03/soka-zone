@@ -2,25 +2,25 @@ import React from 'react';
 import { PageId } from '../components/Navbar';
 
 // Local assets
-const heroImage = "/assets/DSC02618.jpg";
-const pitchImage = "/assets/DSC02336.jpg";
-const actionImage = "/assets/DSC02420.jpg";
-const nightImage = "/assets/DSC02384.jpg";
-const teamImage = "/assets/DSC02260.jpg";
-const playersImage = "/assets/DSC02581 (1).jpg";
+const heroImage = "/assets/pitch1.webp";
+const pitchImage = "/assets/pitch2.webp";
+const actionImage = "/assets/pitch3.webp";
+const nightImage = "/assets/night.webp";
+const teamImage = "/assets/players1.webp";
+const playersImage = "/assets/players2.webp";
 const galleryImages = [
-  "/assets/DSC02260.jpg",
-  "/assets/DSC02336.jpg",
-  "/assets/DSC02581 (1).jpg",
-  "/assets/DSC02618.jpg",
-  "/assets/DSC02420.jpg",
-  "/assets/DSC02384.jpg",
+  "/assets/players1.webp",
+  "/assets/players2.webp",
+  "/assets/players4.webp",
+  "/assets/pitch1.webp",
+  "/assets/pitch3.webp",
+  "/assets/night.webp",
 ];
 
 const eventImages = [
-  "/assets/DSC02260.jpg",
-  "/assets/DSC02581 (1).jpg",
-  "/assets/DSC02336.jpg",
+  "/assets/tournament.webp",
+  "/assets/tournament2.webp",
+  "/assets/fans1.webp",
 ];
 
 interface HomePageProps {
@@ -304,7 +304,8 @@ export function HomePage({ onNavigate }: HomePageProps) {
               <div key={index} className="group relative overflow-hidden rounded-xl shadow-lg cursor-pointer h-80">
                 <img 
                   src={image} 
-                  alt={`Gallery ${index + 1}`} 
+                  alt={`Gallery ${index + 1}`}
+                  loading="lazy"
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
