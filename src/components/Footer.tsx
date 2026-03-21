@@ -21,9 +21,9 @@ export function Footer({ onNavigate }: FooterProps) {
               onClick={(e) => handleNavigate(e, 'home')}>
               
               <img
-                src="/assets/logo.webp"
+                src="/assets/logo-transparent.png"
                 alt="Soka Zone Logo"
-                className="h-12 w-auto object-contain"
+                className="h-16 w-auto object-contain"
               />
             </div>
             <p className="text-sm leading-relaxed">
@@ -150,7 +150,10 @@ export function Footer({ onNavigate }: FooterProps) {
         </div>
 
         <div className="border-t border-gray-900 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-sm">
-          <p>© 2024 Soka Zone. All rights reserved.</p>
+          <div className="text-center md:text-left">
+            <p>© {new Date().getFullYear()} Soka Zone. All rights reserved.</p>
+            <p className="text-gray-400 mt-1">Developed by Siala Solutions</p>
+          </div>
           <div className="flex gap-6">
             <a href="#" className="hover:text-white transition-colors">
               Privacy Policy

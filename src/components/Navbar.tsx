@@ -38,7 +38,7 @@ export function Navbar({ currentPage, onNavigate }: NavbarProps) {
     window.scrollTo(0, 0);
   };
   return (
-    <nav className="sticky top-0 z-50 w-full bg-white shadow-sm">
+    <nav className="sticky top-0 z-50 w-full bg-white/90 backdrop-blur-md shadow-sm border-b border-gray-100">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-20">
           {/* Logo */}
@@ -49,9 +49,9 @@ export function Navbar({ currentPage, onNavigate }: NavbarProps) {
             <div className="flex items-center gap-2">
               {/* Logo */}
               <img
-                src="/assets/logo.webp"
+                src="/assets/logo-transparent.png"
                 alt="Soka Zone Logo"
-                className="h-16 w-auto object-contain"
+                className="h-20 w-auto object-contain"
               />
             </div>
           </div>

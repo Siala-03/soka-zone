@@ -19,8 +19,8 @@ const galleryImages = [
 
 const eventImages = [
   "/assets/small_tournament.webp",
-  "/assets/small_tournament2.webp",
-  "/assets/small_fans1.webp",
+  "/assets/small_players2.webp",
+  "/assets/small_pitch4.webp",
 ];
 
 interface HomePageProps {
@@ -301,7 +301,7 @@ export function HomePage({ onNavigate }: HomePageProps) {
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {galleryImages.map((image, index) => (
-              <div key={index} className="group relative overflow-hidden rounded-xl shadow-lg cursor-pointer h-80">
+              <div key={index} className="group relative overflow-hidden rounded-xl shadow-lg cursor-pointer h-80 premium-card">
                 <img 
                   src={image} 
                   alt={`Gallery ${index + 1}`}
@@ -325,11 +325,16 @@ export function HomePage({ onNavigate }: HomePageProps) {
             <div className="absolute left-0 top-0 bottom-0 w-32 bg-gradient-to-r from-gray-50 to-transparent z-10"></div>
             <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-gray-50 to-transparent z-10"></div>
             <div className="flex overflow-x-auto gap-16 px-8 py-4">
-              {["RDB", "SKOL", "MTN", "Airtel", "FIFA", "CAF"].map((org, index) => (
-                <div key={index} className="flex-shrink-0 w-56 h-40 bg-white rounded-xl shadow-md flex items-center justify-center hover:shadow-xl transition-shadow">
-                  <div className="text-center p-4">
-                    <div className="font-bold text-gray-700">{org}</div>
-                  </div>
+              {[
+                { name: "Optiven", image: "/assets/optiven.png" },
+                { name: "Indomie", image: "/assets/indomie.png" },
+                { name: "Masaka", image: "/assets/masaka.jfif" },
+                { name: "Miadi", image: "/assets/miadi.png" },
+                { name: "Mikidas", image: "/assets/mikidas.jfif" },
+                { name: "MasterGrill", image: "/assets/mastergrill.png" },
+              ].map((org, index) => (
+                <div key={index} className="flex-shrink-0 w-56 h-40 bg-white rounded-xl shadow-md flex items-center justify-center hover:shadow-xl transition-shadow p-4 premium-card">
+                  <img src={org.image} alt={org.name} className="max-w-full max-h-full object-contain" />
                 </div>
               ))}
             </div>
