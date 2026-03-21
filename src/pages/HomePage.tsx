@@ -2,25 +2,25 @@ import React from 'react';
 import { PageId } from '../components/Navbar';
 
 // Local assets
-const heroImage = "/assets/pitch1.webp";
-const pitchImage = "/assets/pitch2.webp";
-const actionImage = "/assets/pitch3.webp";
-const nightImage = "/assets/night.webp";
-const teamImage = "/assets/players1.webp";
-const playersImage = "/assets/players2.webp";
+const heroImage = "/assets/small_pitch1.webp";
+const pitchImage = "/assets/small_pitch2.webp";
+const actionImage = "/assets/small_pitch3.webp";
+const nightImage = "/assets/small_night.webp";
+const teamImage = "/assets/small_players1.webp";
+const playersImage = "/assets/small_players2.webp";
 const galleryImages = [
-  "/assets/players1.webp",
-  "/assets/players2.webp",
-  "/assets/players4.webp",
-  "/assets/pitch1.webp",
-  "/assets/pitch3.webp",
-  "/assets/night.webp",
+  "/assets/small_players1.webp",
+  "/assets/small_players2.webp",
+  "/assets/small_players4.webp",
+  "/assets/small_pitch1.webp",
+  "/assets/small_pitch3.webp",
+  "/assets/small_night.webp",
 ];
 
 const eventImages = [
-  "/assets/tournament.webp",
-  "/assets/tournament2.webp",
-  "/assets/fans1.webp",
+  "/assets/small_tournament.webp",
+  "/assets/small_tournament2.webp",
+  "/assets/small_fans1.webp",
 ];
 
 interface HomePageProps {

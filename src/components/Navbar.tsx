@@ -49,7 +49,7 @@ export function Navbar({ currentPage, onNavigate }: NavbarProps) {
             <div className="flex items-center gap-2">
               {/* Logo */}
               <img
-                src="/assets/logo-new.webp"
+                src="/assets/logo.webp"
                 alt="Soka Zone Logo"
                 className="h-16 w-auto object-contain"
               />

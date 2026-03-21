@@ -2,14 +2,14 @@ import React from 'react';
 import { PageId } from '../components/Navbar';
 
 // Local assets
-const heroImage = "/assets/pitch4.webp";
-const universityImage = "/assets/tournament.webp";
-const corporateImage = "/assets/sponsors.webp";
-const internationalImage = "/assets/partners.webp";
-const schedulingImage = "/assets/facility.webp";
-const managementImage = "/assets/players1.webp";
-const paymentImage = "/assets/pitch3.webp";
-const communityImage = "/assets/fans1.webp";
+const heroImage = "/assets/small_pitch4.webp";
+const universityImage = "/assets/small_pitch4.webp";
+const corporateImage = "/assets/small_players2.webp";
+const internationalImage = "/assets/small_partners.webp";
+const schedulingImage = "/assets/small_facility.webp";
+const managementImage = "/assets/small_players1.webp";
+const paymentImage = "/assets/small_pitch3.webp";
+const communityImage = "/assets/small_fans1.webp";
 
 interface OrganizationsPageProps {
   onNavigate: (page: PageId) => void;
@@ -102,14 +102,12 @@ export function OrganizationsPage({ onNavigate }: OrganizationsPageProps) {
   ];
 
   const partners = [
-    { name: "TechNova", description: "Providing digital solutions for league management and player stats.", color: "blue" },
-    { name: "UniCore", description: "Partnering for student wellness and inter-campus leagues.", color: "red" },
-    { name: "VitalLife", description: "Promoting active lifestyles and community health initiatives.", color: "green" },
-    { name: "BuildRight", description: "Building world-class sports infrastructure and facilities.", color: "orange" },
-    { name: "FinCorp", description: "Supporting sustainable sports development and youth programs.", color: "indigo" },
-    { name: "PowerGrid", description: "Powering our night games and sustainable facility operations.", color: "yellow" },
-    { name: "GlobalMove", description: "Ensuring smooth operations and equipment transport for events.", color: "teal" },
-    { name: "MediaStream", description: "Broadcasting the excitement of local football to the world.", color: "purple" },
+    { name: "Optiven", image: "/assets/optiven.png", color: "blue" },
+    { name: "Indomie", image: "/assets/indomie.png", color: "red" },
+    { name: "Masaka", image: "/assets/masaka.jfif", color: "green" },
+    { name: "Miadi", image: "/assets/miadi.png", color: "orange" },
+    { name: "Mikidas", image: "/assets/mikidas.jfif", color: "indigo" },
+    { name: "MasterGrill", image: "/assets/mastergrill.png", color: "yellow" },
   ];
 
   return (
@@ -280,16 +278,20 @@ export function OrganizationsPage({ onNavigate }: OrganizationsPageProps) {
                 {partners.map((partner, index) => (
                   <div 
                     key={index} 
-                    className="flex-shrink-0 w-64 h-40 bg-white rounded-xl shadow-md flex items-center justify-center hover:shadow-xl transition-shadow overflow-hidden"
+                    className="flex-shrink-0 w-64 h-40 bg-white rounded-xl shadow-md flex items-center justify-center hover:shadow-xl transition-shadow overflow-hidden p-4"
                   >
-                    <div className="text-center p-4">
-                      <div className={`w-16 h-16 mx-auto mb-3 rounded-full bg-${partner.color}-100 flex items-center justify-center`}>
-                        <svg className={`w-8 h-8 text-${partner.color}-600`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-                        </svg>
+                    {partner.image ? (
+                      <img src={partner.image} alt={partner.name} className="max-w-full max-h-full object-contain" />
+                    ) : (
+                      <div className="text-center p-4">
+                        <div className={`w-16 h-16 mx-auto mb-3 rounded-full bg-${partner.color}-100 flex items-center justify-center`}>
+                          <svg className={`w-8 h-8 text-${partner.color}-600`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                          </svg>
+                        </div>
+                        <div className="font-bold text-gray-700">{partner.name}</div>
                       </div>
-                      <div className="font-bold text-gray-700">{partner.name}</div>
-                    </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -297,16 +299,20 @@ export function OrganizationsPage({ onNavigate }: OrganizationsPageProps) {
                 {partners.map((partner, index) => (
                   <div 
                     key={`dup-${index}`} 
-                    className="flex-shrink-0 w-64 h-40 bg-white rounded-xl shadow-md flex items-center justify-center hover:shadow-xl transition-shadow overflow-hidden"
+                    className="flex-shrink-0 w-64 h-40 bg-white rounded-xl shadow-md flex items-center justify-center hover:shadow-xl transition-shadow overflow-hidden p-4"
                   >
-                    <div className="text-center p-4">
-                      <div className={`w-16 h-16 mx-auto mb-3 rounded-full bg-${partner.color}-100 flex items-center justify-center`}>
-                        <svg className={`w-8 h-8 text-${partner.color}-600`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-                        </svg>
+                    {partner.image ? (
+                      <img src={partner.image} alt={partner.name} className="max-w-full max-h-full object-contain" />
+                    ) : (
+                      <div className="text-center p-4">
+                        <div className={`w-16 h-16 mx-auto mb-3 rounded-full bg-${partner.color}-100 flex items-center justify-center`}>
+                          <svg className={`w-8 h-8 text-${partner.color}-600`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                          </svg>
+                        </div>
+                        <div className="font-bold text-gray-700">{partner.name}</div>
                       </div>
-                      <div className="font-bold text-gray-700">{partner.name}</div>
-                    </div>
+                    )}
                   </div>
                 ))}
               </div>

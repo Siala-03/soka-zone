@@ -21,7 +21,7 @@ export function Footer({ onNavigate }: FooterProps) {
               onClick={(e) => handleNavigate(e, 'home')}>
               
               <img
-                src="/assets/logo-new.webp"
+                src="/assets/logo.webp"
                 alt="Soka Zone Logo"
                 className="h-12 w-auto object-contain"
               />
