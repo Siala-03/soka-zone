@@ -27,6 +27,7 @@ interface Booking {
   id: string;
   date: string;
   time: string;
+  duration: number;
   pitch: string;
   name: string;
   phone: string;
@@ -36,6 +37,7 @@ interface Booking {
 
 interface BookingCalendarProps {
   pitchType: string;
+  duration?: number;
 }
 
 // Generate time slots from 6 AM to 10 PM
@@ -45,7 +47,7 @@ const timeSlots = [
   '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'
 ];
 
-export function BookingCalendar({ pitchType }: BookingCalendarProps) {
+export function BookingCalendar({ pitchType = 'Standard', duration = 2 }: BookingCalendarProps) {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -63,7 +65,7 @@ export function BookingCalendar({ pitchType }: BookingCalendarProps) {
   // Fetch bookings for selected date and pitch
   useEffect(() => {
     fetchBookings();
-  }, [selectedDate, pitchType]);
+  }, [selectedDate, pitchType, duration]);
 
   const fetchBookings = async () => {
     try {
@@ -91,12 +93,45 @@ export function BookingCalendar({ pitchType }: BookingCalendarProps) {
     end: endOfWeek(currentWeekStart, { weekStartsOn: 1 })
   });
 
+  // Check if a time slot is booked (either directly or as part of a longer booking)
   const isSlotBooked = (time: string) => {
-    return bookings.some(b => b.time === time && b.status !== 'cancelled');
+    const timeHour = parseInt(time.split(':')[0]);
+    
+    // Check if this slot is the start of a booked duration
+    const asStartSlot = bookings.some(b => {
+      if (b.status === 'cancelled') return false;
+      const bookingHour = parseInt(b.time.split(':')[0]);
+      const bookingDuration = b.duration || 2;
+      return bookingHour === timeHour;
+    });
+    
+    if (asStartSlot) return true;
+    
+    // Check if this slot falls within an existing booking's duration
+    return bookings.some(b => {
+      if (b.status === 'cancelled') return false;
+      const bookingHour = parseInt(b.time.split(':')[0]);
+      const bookingDuration = b.duration || 2;
+      return timeHour > bookingHour && timeHour < (bookingHour + bookingDuration);
+    });
+  };
+
+  // Check if a slot can be booked for the given duration (all consecutive slots available)
+  const canBookSlot = (time: string, dur: number) => {
+    const timeHour = parseInt(time.split(':')[0]);
+    const endHour = timeHour + dur;
+    
+    // Check if all slots in the duration range are available
+    for (let h = timeHour; h < endHour; h++) {
+      const slotTime = `${h.toString().padStart(2, '0')}:00`;
+      if (isSlotBooked(slotTime)) return false;
+    }
+    return true;
   };
 
   const handleSlotClick = (time: string) => {
-    if (!isSlotBooked(time) && !isPast(addHours(startOfDay(selectedDate), parseInt(time.split(':')[0])))) {
+    const isPastSlot = isPast(addHours(startOfDay(selectedDate), parseInt(time.split(':')[0])));
+    if (!isSlotBooked(time) && !isPastSlot && canBookSlot(time, duration)) {
       setSelectedTime(time);
       setShowForm(true);
     }
@@ -106,34 +141,16 @@ export function BookingCalendar({ pitchType }: BookingCalendarProps) {
     e.preventDefault();
     setLoading(true);
 
-    try {
-      const booking = {
-        date: format(selectedDate, 'yyyy-MM-dd'),
-        time: selectedTime!,
-        pitch: pitchType,
-        name: formData.name,
-        phone: formData.phone,
-        email: formData.email,
-        notes: formData.notes,
-        status: 'confirmed' as const,
-        createdAt: new Date().toISOString()
-      };
-
-      await addDoc(collection(db, 'bookings'), booking);
-      
+    // Show coming soon message instead of processing
+    setTimeout(() => {
+      setLoading(false);
       setSuccess(true);
       setTimeout(() => {
         setShowForm(false);
         setSuccess(false);
         setFormData({ name: '', phone: '', email: '', notes: '' });
-        fetchBookings();
-      }, 2000);
-    } catch (error) {
-      console.error('Error creating booking:', error);
-      alert('Booking failed. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+      }, 5000);
+    }, 500);
   };
 
   const goToPrevWeek = () => {
@@ -198,11 +215,14 @@ export function BookingCalendar({ pitchType }: BookingCalendarProps) {
           const booked = isSlotBooked(time);
           const isPastSlot = isPast(addHours(startOfDay(selectedDate), parseInt(time.split(':')[0])));
           
+          const blockedByDuration = booked && !canBookSlot(time, duration);
+          const cannotBook = booked || isPastSlot || !canBookSlot(time, duration);
+          
           return (
             <button
               key={time}
               onClick={() => handleSlotClick(time)}
-              disabled={booked || isPastSlot}
+              disabled={cannotBook}
               className={`p-3 rounded-lg text-center transition-all ${
                 booked 
                   ? 'bg-red-100 text-red-600 cursor-not-allowed'
@@ -213,7 +233,8 @@ export function BookingCalendar({ pitchType }: BookingCalendarProps) {
             >
               <Clock className="w-4 h-4 mx-auto mb-1" />
               <span className="font-medium">{time}</span>
-              {booked && <div className="text-xs">Booked</div>}
+              {blockedByDuration && <div className="text-xs">Blocked</div>}
+              {booked && !blockedByDuration && <div className="text-xs">Booked</div>}
             </button>
           );
         })}
@@ -221,8 +242,8 @@ export function BookingCalendar({ pitchType }: BookingCalendarProps) {
 
       {/* Booking Form Modal */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 relative">
+        <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 pt-20 p-4 overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-2xl max-w-xs w-full p-3 relative">
             <button 
               onClick={() => setShowForm(false)}
               className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
@@ -232,20 +253,25 @@ export function BookingCalendar({ pitchType }: BookingCalendarProps) {
 
             {success ? (
               <div className="text-center py-8">
-                <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-                <h3 className="text-2xl font-bold text-gray-800 mb-2">Booking Confirmed!</h3>
-                <p className="text-gray-600">
-                  Your pitch is booked for {format(selectedDate, 'MMMM d, yyyy')} at {selectedTime}
+                <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                  <Clock className="w-6 h-6 text-yellow-600" />
+                </div>
+                <h3 className="text-lg font-bold text-gray-800 mb-1">Online Booking Coming Soon!</h3>
+                <p className="text-gray-600 text-sm mb-3">
+                  Please call <a href="tel:+250792887614" className="font-bold text-green-600">+250 792 887 614</a> to book and pay for your pitch.
+                </p>
+                <p className="text-gray-500 text-xs">
+                  Selected: {format(selectedDate, 'MMMM d, yyyy')} at {selectedTime} for {duration} hour{duration > 1 ? 's' : ''}
                 </p>
               </div>
             ) : (
               <>
-                <h3 className="text-2xl font-bold mb-2">Complete Booking</h3>
-                <p className="text-gray-600 mb-6">
-                  {format(selectedDate, 'EEEE, MMMM d, yyyy')} at {selectedTime}
+                <h3 className="text-lg font-bold mb-1">Complete Booking</h3>
+                <p className="text-gray-600 mb-4 text-sm">
+                  {format(selectedDate, 'EEEE, MMMM d, yyyy')} at {selectedTime} ({duration} hour{duration > 1 ? 's' : ''})
                 </p>
 
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} className="space-y-3">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       <User className="w-4 h-4 inline mr-1" /> Full Name *
@@ -255,7 +281,7 @@ export function BookingCalendar({ pitchType }: BookingCalendarProps) {
                       required
                       value={formData.name}
                       onChange={(e) => setFormData({...formData, name: e.target.value})}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
                       placeholder="Enter your name"
                     />
                   </div>
@@ -269,7 +295,7 @@ export function BookingCalendar({ pitchType }: BookingCalendarProps) {
                       required
                       value={formData.phone}
                       onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
                       placeholder="+250 xxx xxx xxx"
                     />
                   </div>
@@ -282,7 +308,7 @@ export function BookingCalendar({ pitchType }: BookingCalendarProps) {
                       type="email"
                       value={formData.email}
                       onChange={(e) => setFormData({...formData, email: e.target.value})}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
                       placeholder="your@email.com"
                     />
                   </div>
@@ -294,8 +320,8 @@ export function BookingCalendar({ pitchType }: BookingCalendarProps) {
                     <textarea
                       value={formData.notes}
                       onChange={(e) => setFormData({...formData, notes: e.target.value})}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                      rows={3}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                      rows={2}
                       placeholder="Any special requests?"
                     />
                   </div>
@@ -303,7 +329,7 @@ export function BookingCalendar({ pitchType }: BookingCalendarProps) {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-semibold transition-colors disabled:opacity-50"
+                    className="w-full bg-green-600 hover:bg-green-700 text-white py-2 text-sm rounded-lg font-semibold transition-colors disabled:opacity-50"
                   >
                     {loading ? 'Processing...' : 'Confirm Booking'}
                   </button>

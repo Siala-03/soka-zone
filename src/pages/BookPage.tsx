@@ -10,7 +10,6 @@ export function BookPage() {
   const [selectedTime, setSelectedTime] = useState<string>('');
   const [duration, setDuration] = useState<number>(2);
   const [showComingSoon, setShowComingSoon] = useState<boolean>(false);
-  const [pitchType, setPitchType] = useState<string>('Standard');
 
   const timeSlots = [
     '06:00 AM',
@@ -106,35 +105,10 @@ export function BookPage() {
                 </div>
               </div>
 
-              {/* Pitch Type Selector */}
-              <div className="mb-8">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Select Pitch Type</label>
-                <div className="flex gap-4">
-                  <button
-                    onClick={() => setPitchType('Standard')}
-                    className={`px-6 py-3 rounded-lg font-medium transition-all ${
-                      pitchType === 'Standard'
-                        ? 'bg-green-600 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    Standard
-                  </button>
-                  <button
-                    onClick={() => setPitchType('Premium')}
-                    className={`px-6 py-3 rounded-lg font-medium transition-all ${
-                      pitchType === 'Premium'
-                        ? 'bg-green-600 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    Premium
-                  </button>
-                </div>
-              </div>
+
 
               {/* Booking Calendar */}
-              <BookingCalendar pitchType={pitchType} />
+              <BookingCalendar duration={duration} />
 
               {/* Duration */}
               <div className="mt-8">
@@ -180,7 +154,7 @@ export function BookPage() {
               <div className="mt-12 flex justify-end">
                 <button 
                   disabled={!selectedDate || !selectedTime}
-                  onClick={() => setShowComingSoon(true)}
+                  onClick={() => alert('Please call +250 792 887 614 to confirm your booking')}
                   className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-1"
                 >
                   Continue to Details
