@@ -7,18 +7,18 @@ export function ContactPage() {
     icon: <Mail className="w-6 h-6 text-white" />,
     iconBg: 'bg-green-500',
     title: 'Email',
-    content: 'sokazone@gmail.com',
+    content: 'sokazone@outlook.com',
     isLink: true,
-    href: 'mailto:sokazone@gmail.com',
+    href: 'mailto:sokazone@outlook.com',
     linkColor: 'text-green-600'
   },
   {
     icon: <Phone className="w-6 h-6 text-white" />,
     iconBg: 'bg-blue-500',
     title: 'Phone',
-    content: '+250 787 104 894',
+    content: '+250 792 887 614',
     isLink: true,
-    href: 'tel:+250787104894',
+    href: 'tel:+250792887614',
     linkColor: 'text-green-600'
   },
   {
@@ -45,13 +45,13 @@ export function ContactPage() {
         overlayColor="blue">
         
         <a
-          href="mailto:sokazone@gmail.com"
+          href="mailto:sokazone@outlook.com"
           className="bg-white text-blue-900 hover:bg-gray-100 px-6 py-2 rounded-md font-bold transition-colors">
           
           Send us an Email
         </a>
         <a
-          href="tel:+250787104894"
+          href="tel:+250792887614"
           className="bg-transparent border-2 border-white text-white hover:bg-white hover:text-blue-900 px-6 py-2 rounded-md font-bold transition-colors">
           
           Call Us Now

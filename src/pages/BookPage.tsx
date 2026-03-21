@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { CheckCircle2, Calendar as CalendarIcon, Clock, CalendarCheck, CreditCard, AlertCircle } from 'lucide-react';
+import { BookingCalendar } from '../components/BookingCalendar';
 
 // Local assets
 const heroImage = "/assets/small_pitch2.webp";
@@ -9,6 +10,7 @@ export function BookPage() {
   const [selectedTime, setSelectedTime] = useState<string>('');
   const [duration, setDuration] = useState<number>(2);
   const [showComingSoon, setShowComingSoon] = useState<boolean>(false);
+  const [pitchType, setPitchType] = useState<string>('Standard');
 
   const timeSlots = [
     '06:00 AM',
@@ -99,62 +101,40 @@ export function BookPage() {
               {/* Header */}
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
                 <div>
-                  <h2 className="text-3xl font-bold text-gray-900">Choose Date & Time</h2>
-                  <p className="text-gray-600">Select your preferred slot for the 7-a-side pitch</p>
-                </div>
-                <div className="bg-blue-50 text-blue-700 px-4 py-2 rounded-lg font-bold flex items-center border border-blue-100">
-                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  7-a-Side Pitch
+                  <h2 className="text-3xl font-bold text-gray-900">Book Your Pitch</h2>
+                  <p className="text-gray-600">Select your preferred date and time slot</p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-                {/* Date Selection */}
-                <div>
-                  <h3 className="font-bold text-gray-900 mb-4 flex items-center">
-                    <span className="w-8 h-8 bg-green-100 text-green-600 rounded-lg flex items-center justify-center mr-3 text-sm">1</span>
-                    Select Date
-                  </h3>
-                  <div className="bg-white p-4 rounded-2xl shadow-inner border border-gray-100">
-                    <input
-                      type="date"
-                      className="block w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900 bg-white"
-                      value={selectedDate}
-                      onChange={(e) => setSelectedDate(e.target.value)}
-                    />
-                  </div>
-                  <div className="mt-4 p-4 bg-green-50 rounded-xl border border-green-100 flex items-center justify-between">
-                    <span className="text-green-800 font-medium">Selected Date:</span>
-                    <span className="text-green-900 font-bold">{selectedDate || 'Select a date'}</span>
-                  </div>
-                </div>
-
-                {/* Time Selection */}
-                <div>
-                  <h3 className="font-bold text-gray-900 mb-4 flex items-center">
-                    <span className="w-8 h-8 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center mr-3 text-sm">2</span>
-                    Select Time
-                  </h3>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {timeSlots.map((time) => (
-                      <button
-                        key={time}
-                        onClick={() => setSelectedTime(time)}
-                        className={`py-2 px-3 rounded-lg text-sm font-medium border transition-all duration-200 flex items-center justify-center ${
-                          selectedTime === time 
-                            ? 'bg-green-600 border-green-600 text-white' 
-                            : 'bg-white border-gray-200 text-gray-700 hover:border-green-500 hover:bg-green-50'
-                        }`}
-                      >
-                        <Clock className="w-3.5 h-3.5 mr-1.5" />
-                        {time}
-                      </button>
-                    ))}
-                  </div>
+              {/* Pitch Type Selector */}
+              <div className="mb-8">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Select Pitch Type</label>
+                <div className="flex gap-4">
+                  <button
+                    onClick={() => setPitchType('Standard')}
+                    className={`px-6 py-3 rounded-lg font-medium transition-all ${
+                      pitchType === 'Standard'
+                        ? 'bg-green-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    Standard
+                  </button>
+                  <button
+                    onClick={() => setPitchType('Premium')}
+                    className={`px-6 py-3 rounded-lg font-medium transition-all ${
+                      pitchType === 'Premium'
+                        ? 'bg-green-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    Premium
+                  </button>
                 </div>
               </div>
+
+              {/* Booking Calendar */}
+              <BookingCalendar pitchType={pitchType} />
 
               {/* Duration */}
               <div className="mt-8">
@@ -216,7 +196,7 @@ export function BookPage() {
                     </svg>
                     <span className="text-yellow-800 font-semibold">This online booking feature is coming soon!</span>
                   </div>
-                  <p className="text-yellow-700 text-center mt-2 text-sm">Please call <a href="tel:+250787104894" className="font-bold underline">+250 787 104 894</a> to make a booking.</p>
+                  <p className="text-yellow-700 text-center mt-2 text-sm">Please call <a href="tel:+250792887614" className="font-bold underline">+250 792 887 614</a> to make a booking.</p>
                 </div>
               )}
             </div>
