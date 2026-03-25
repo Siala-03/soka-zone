@@ -1,0 +1,15 @@
+# Robots.txt for Soka Zone
+# https://sokazone.rw
+
+User-agent: *
+Allow: /
+
+# Sitemaps
+Sitemap: https://sokazone.rw/sitemap.xml
+
+# Disallow admin/private areas (if any)
+Disallow: /api/
+Disallow: /*?
+
+# Crawl-delay (optional, for polite crawling)
+Crawl-delay: 1
