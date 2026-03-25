@@ -38,6 +38,7 @@ interface Booking {
 interface BookingCalendarProps {
   pitchType: string;
   duration?: number;
+  onDateTimeSelect?: (date: string, time: string) => void;
 }
 
 // Generate time slots from 6 AM to 10 PM
@@ -47,7 +48,7 @@ const timeSlots = [
   '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'
 ];
 
-export function BookingCalendar({ pitchType = 'Standard', duration = 2 }: BookingCalendarProps) {
+export function BookingCalendar({ pitchType = 'Standard', duration = 2, onDateTimeSelect }: BookingCalendarProps) {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -133,6 +134,11 @@ export function BookingCalendar({ pitchType = 'Standard', duration = 2 }: Bookin
     const isPastSlot = isPast(addHours(startOfDay(selectedDate), parseInt(time.split(':')[0])));
     if (!isSlotBooked(time) && !isPastSlot && canBookSlot(time, duration)) {
       setSelectedTime(time);
+      // Call the callback to communicate selection back to parent
+      if (onDateTimeSelect) {
+        const dateStr = format(selectedDate, 'yyyy-MM-dd');
+        onDateTimeSelect(dateStr, time);
+      }
       setShowForm(true);
     }
   };
@@ -141,16 +147,20 @@ export function BookingCalendar({ pitchType = 'Standard', duration = 2 }: Bookin
     e.preventDefault();
     setLoading(true);
 
-    // Show coming soon message instead of processing
-    setTimeout(() => {
-      setLoading(false);
-      setSuccess(true);
-      setTimeout(() => {
-        setShowForm(false);
-        setSuccess(false);
-        setFormData({ name: '', phone: '', email: '', notes: '' });
-      }, 5000);
-    }, 500);
+    // Commented out for testing - BookPage now handles booking flow
+    // setTimeout(() => {
+    //   setLoading(false);
+    //   setSuccess(true);
+    //   setTimeout(() => {
+    //     setShowForm(false);
+    //     setSuccess(false);
+    //     setFormData({ name: '', phone: '', email: '', notes: '' });
+    //   }, 5000);
+    // }, 500);
+
+    // For now, just close the form
+    setLoading(false);
+    setShowForm(false);
   };
 
   const goToPrevWeek = () => {
@@ -253,12 +263,12 @@ export function BookingCalendar({ pitchType = 'Standard', duration = 2 }: Bookin
 
             {success ? (
               <div className="text-center py-8">
-                <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-2">
-                  <Clock className="w-6 h-6 text-yellow-600" />
+                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                  <CheckCircle className="w-6 h-6 text-green-600" />
                 </div>
-                <h3 className="text-lg font-bold text-gray-800 mb-1">Online Booking Coming Soon!</h3>
+                <h3 className="text-lg font-bold text-gray-800 mb-1">Booking Confirmed!</h3>
                 <p className="text-gray-600 text-sm mb-3">
-                  Please call <a href="tel:+250792887614" className="font-bold text-green-600">+250 792 887 614</a> to book and pay for your pitch.
+                  Your booking has been submitted successfully.
                 </p>
                 <p className="text-gray-500 text-xs">
                   Selected: {format(selectedDate, 'MMMM d, yyyy')} at {selectedTime} for {duration} hour{duration > 1 ? 's' : ''}
