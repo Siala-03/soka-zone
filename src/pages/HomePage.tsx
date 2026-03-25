@@ -2,24 +2,24 @@ import React from 'react';
 import { PageId } from '../components/Navbar';
 
 // Local assets
-const heroImage = "/assets/small_pitch1.webp";
-const pitchImage = "/assets/small_pitch2.webp";
-const actionImage = "/assets/small_pitch3.webp";
+const heroImage = "/assets/field1.jpeg";
+const pitchImage = "/assets/field2.jpeg";
+const actionImage = "/assets/field3.jpeg";
 const nightImage = "/assets/small_night.webp";
 const teamImage = "/assets/small_players1.webp";
 const playersImage = "/assets/small_pitch4.webp";
 const galleryImages = [
-  "/assets/small_players1.webp",
-  "/assets/small_pitch4.webp",
+  "/assets/field1.jpeg",
+  "/assets/field3.jpeg",
   "/assets/small_players4.webp",
-  "/assets/small_pitch1.webp",
+  "/assets/field2.jpeg",
   "/assets/small_pitch3.webp",
   "/assets/small_night.webp",
 ];
 
 const eventImages = [
   "/assets/small_tournament.webp",
-  "/assets/small_pitch4.webp",
+  "/assets/field3.jpeg",
   "/assets/small_tournament2.webp",
 ];
 
@@ -319,24 +319,46 @@ export function HomePage({ onNavigate }: HomePageProps) {
       <section className="py-16 bg-gray-50 overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl font-bold text-center mb-12">
-            Trusted by Leading Organizations
+            Trusted by Leading Organizations and Country Embassies
           </h2>
           <div className="relative">
             <div className="absolute left-0 top-0 bottom-0 w-32 bg-gradient-to-r from-gray-50 to-transparent z-10"></div>
             <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-gray-50 to-transparent z-10"></div>
-            <div className="flex overflow-x-auto gap-16 px-8 py-4">
-              {[
-                { name: "Optiven", image: "/assets/optiven.png" },
-                { name: "Indomie", image: "/assets/indomie.png" },
-                { name: "Masaka", image: "/assets/masaka.jfif" },
-                { name: "Miadi", image: "/assets/miadi.png" },
-                { name: "Mikidas", image: "/assets/mikidas.jfif" },
-                { name: "MasterGrill", image: "/assets/mastergrill.png" },
-              ].map((org, index) => (
-                <div key={index} className="flex-shrink-0 w-56 h-40 bg-white rounded-xl shadow-md flex items-center justify-center hover:shadow-xl transition-shadow p-4 premium-card">
-                  <img src={org.image} alt={org.name} className="max-w-full max-h-full object-contain" />
-                </div>
-              ))}
+            <div className="flex animate-scroll">
+              <div className="flex items-center gap-8 px-8">
+                {[
+                  { name: "Rwanda Civil Aviation", image: "/assets/RCAA.jfif" },
+                  { name: "Akagera Aviation", image: "/assets/akagera.png" },
+                  { name: "Sudanese Community", image: "/assets/Sudan.svg" },
+                  { name: "Cameroon", image: "/assets/Cameroon.png" },
+                  { name: "Kenya", image: "/assets/Kenya.webp" },
+                  { name: "Nigeria", image: "/assets/Nigeria.webp" },
+                  { name: "Ethiopia", image: "/assets/Ethiopia.png" },
+                  { name: "Chinese", image: "/assets/china.png" },
+                  { name: "Team X", image: "/assets/TeamX.png" },
+                ].map((org, index) => (
+                  <div key={index} className="flex-shrink-0 w-64 h-40 bg-white rounded-xl shadow-md flex items-center justify-center hover:shadow-xl transition-shadow overflow-hidden p-4">
+                    <img src={org.image} alt={org.name} className="max-w-full max-h-full object-contain" />
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center gap-8 px-8">
+                {[
+                  { name: "Rwanda Civil Aviation", image: "/assets/RCAA.jfif" },
+                  { name: "Akagera Aviation", image: "/assets/akagera.png" },
+                  { name: "Sudanese Community", image: "/assets/Sudan.svg" },
+                  { name: "Cameroon", image: "/assets/Cameroon.png" },
+                  { name: "Kenya", image: "/assets/Kenya.webp" },
+                  { name: "Nigeria", image: "/assets/Nigeria.webp" },
+                  { name: "Ethiopia", image: "/assets/Ethiopia.png" },
+                  { name: "Chinese", image: "/assets/china.png" },
+                  { name: "Team X", image: "/assets/TeamX.png" },
+                ].map((org, index) => (
+                  <div key={`dup-${index}`} className="flex-shrink-0 w-64 h-40 bg-white rounded-xl shadow-md flex items-center justify-center hover:shadow-xl transition-shadow overflow-hidden p-4">
+                    <img src={org.image} alt={org.name} className="max-w-full max-h-full object-contain" />
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>

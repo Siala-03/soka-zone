@@ -2,9 +2,9 @@ import React from 'react';
 import { PageId } from '../components/Navbar';
 
 // Local assets
-const heroImage = "/assets/small_pitch1.webp";
-const turfImage = "/assets/small_pitch2.webp";
-const actionImage = "/assets/small_pitch3.webp";
+const heroImage = "/assets/field1.jpeg";
+const turfImage = "/assets/field2.jpeg";
+const actionImage = "/assets/field3.jpeg";
 const nightImage = "/assets/small_night.webp";
 const matchImage = "/assets/small_players4.webp";
 const lightingImage = "/assets/small_night.webp";

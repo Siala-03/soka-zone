@@ -2,8 +2,8 @@ import React from 'react';
 import { PageId } from '../components/Navbar';
 
 // Local assets
-const heroImage = "/assets/small_pitch4.webp";
-const universityImage = "/assets/small_pitch4.webp";
+const heroImage = "/assets/field1.jpeg";
+const universityImage = "/assets/field2.jpeg";
 const corporateImage = "/assets/small_players2.webp";
 const internationalImage = "/assets/small_partners.webp";
 const schedulingImage = "/assets/small_facility.webp";
@@ -102,12 +102,15 @@ export function OrganizationsPage({ onNavigate }: OrganizationsPageProps) {
   ];
 
   const partners = [
-    { name: "Optiven", image: "/assets/optiven.png", color: "blue" },
-    { name: "Indomie", image: "/assets/indomie.png", color: "red" },
-    { name: "Masaka", image: "/assets/masaka.jfif", color: "green" },
-    { name: "Miadi", image: "/assets/miadi.png", color: "orange" },
-    { name: "Mikidas", image: "/assets/mikidas.jfif", color: "indigo" },
-    { name: "MasterGrill", image: "/assets/mastergrill.png", color: "yellow" },
+    { name: "Rwanda Civil Aviation", image: "/assets/RCAA.jfif", color: "blue" },
+    { name: "Akagera Aviation", image: "/assets/akagera.png", color: "green" },
+    { name: "Sudanese Community", image: "/assets/Sudan.svg", color: "green" },
+    { name: "Cameroon", image: "/assets/Cameroon.png", color: "yellow" },
+    { name: "Kenyan", image: "/assets/Kenya.webp", color: "orange" },
+    { name: "Nigeria", image: "/assets/Nigeria.webp", color: "indigo" },
+    { name: "Ethiopia", image: "/assets/Ethiopia.png", color: "purple" },
+    { name: "Chinese", image: "/assets/china.png", color: "red" },
+    { name: "Team X", image: "/assets/TeamX.png", color: "blue" },
   ];
 
   return (
@@ -268,7 +271,7 @@ export function OrganizationsPage({ onNavigate }: OrganizationsPageProps) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">Our Partners</h2>
           <p className="text-center text-gray-600 mb-12 text-lg">
-            Trusted by leading organizations across Rwanda
+            Trusted by leading organizations and country embassies across Rwanda
           </p>
           <div className="relative">
             <div className="absolute left-0 top-0 bottom-0 w-32 bg-gradient-to-r from-gray-50 to-transparent z-10"></div>

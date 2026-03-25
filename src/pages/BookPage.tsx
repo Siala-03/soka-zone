@@ -6,7 +6,7 @@ import { PaymentConfirmation } from '../components/PaymentConfirmation';
 import { calculateBookingPrice } from '../utils/pricing';
 
 // Local assets
-const heroImage = "/assets/small_pitch2.webp";
+const heroImage = "/assets/field2.jpeg";
 
 type BookingStep = 'calendar' | 'details' | 'payment' | 'confirmation';
 
