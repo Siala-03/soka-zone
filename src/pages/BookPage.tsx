@@ -17,7 +17,8 @@ export function BookPage() {
   const [selectedTime, setSelectedTime] = useState<string>('');
   const [duration, setDuration] = useState<number>(2);
   const [showContactSales, setShowContactSales] = useState<boolean>(false);
-  
+  const [detailsModalOpen, setDetailsModalOpen] = useState<boolean>(false);
+
   // Form state
   const [formData, setFormData] = useState({
     name: '',
@@ -58,7 +59,7 @@ export function BookPage() {
       alert('Please select a date and time');
       return;
     }
-    setCurrentStep('details');
+    setDetailsModalOpen(true);
   };
 
   const handleDetailsContinue = (data: typeof formData) => {
@@ -67,6 +68,7 @@ export function BookPage() {
       return;
     }
     setFormData(data);
+    setDetailsModalOpen(false);
     setCurrentStep('payment');
   };
 
@@ -274,13 +276,80 @@ export function BookPage() {
                       onClick={handleContinueToDetails}
                       className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-1"
                     >
-                      {showContactSales ? 'Contact Sales First' : 'Continue to Details'}
+                      {showContactSales ? 'Contact Sales First' : 'Fill Details (Pop-out)'}
                     </button>
                   </div>
                 </>
               )}
 
               {/* STEP 2: Details Form */}
+              {detailsModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                  <div className="w-full max-w-2xl bg-white rounded-xl shadow-2xl p-6 relative">
+                    <button
+                      onClick={() => setDetailsModalOpen(false)}
+                      className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
+                    >
+                      ✕
+                    </button>
+                    <h2 className="text-2xl font-bold mb-4">Enter Your Details</h2>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-900 mb-1">Full Name *</label>
+                        <input
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                          value={formData.name}
+                          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                          placeholder="John Doe"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-900 mb-1">Email *</label>
+                        <input
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                          value={formData.email}
+                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                          placeholder="john@example.com"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-900 mb-1">Phone *</label>
+                        <input
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                          value={formData.phone}
+                          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                          placeholder="+250 7XX XXX XXX"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-900 mb-1">Notes</label>
+                        <textarea
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                          value={formData.notes}
+                          onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                          rows={3}
+                          placeholder="Any special requests..."
+                        />
+                      </div>
+                    </div>
+                    <div className="mt-6 flex justify-end gap-2">
+                      <button
+                        onClick={() => setDetailsModalOpen(false)}
+                        className="px-4 py-2 rounded-lg border border-gray-300"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={() => handleDetailsContinue(formData)}
+                        className="px-4 py-2 rounded-lg bg-green-600 text-white"
+                      >
+                        Continue to Payment
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {currentStep === 'details' && (
                 <>
                   <div className="mb-8">
