@@ -1,16 +1,16 @@
 // Pitch pricing configuration (in RWF)
-// Temporary sandbox pricing: 2h = 300 RWF (150 RWF/hour), minimum payment 300 RWF.
+// Live pricing: 2h = 70,000 RWF (35,000 RWF per hour), minimum payment 300 RWF carried from temporary behavior.
 export const PITCH_PRICING = {
   Standard: {
-    base: 150, // Price per hour (temporary placeholder)
+    base: 35000,
     description: '5-a-side pitch',
   },
   Premium: {
-    base: 150, // Price per hour (temporary placeholder)
+    base: 35000,
     description: 'Full-size pitch',
   },
   Championship: {
-    base: 150, // Price per hour (temporary placeholder)
+    base: 35000,
     description: 'Professional-grade pitch',
   },
 } as const;
