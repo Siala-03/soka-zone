@@ -104,7 +104,7 @@ export function OrganizationsPage({ onNavigate }: OrganizationsPageProps) {
   const partners = [
     { name: "Rwanda Civil Aviation", image: "/assets/RCAA.jfif", color: "blue" },
     { name: "Akagera Aviation", image: "/assets/akagera.png", color: "green" },
-    { name: "Sudanese Community", image: "/assets/Sudan.svg", color: "green" },
+    { name: "Sudanese Community", image: "/assets/sudan.jpg", color: "green" },
     { name: "Cameroon", image: "/assets/Cameroon.png", color: "yellow" },
     { name: "Kenyan", image: "/assets/Kenya.webp", color: "orange" },
     { name: "Nigeria", image: "/assets/Nigeria.webp", color: "indigo" },

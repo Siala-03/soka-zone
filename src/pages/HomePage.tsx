@@ -329,7 +329,7 @@ export function HomePage({ onNavigate }: HomePageProps) {
                 {[
                   { name: "Rwanda Civil Aviation", image: "/assets/RCAA.jfif" },
                   { name: "Akagera Aviation", image: "/assets/akagera.png" },
-                  { name: "Sudanese Community", image: "/assets/Sudan.svg" },
+                  { name: "Sudanese Community", image: "/assets/sudan.jpg" },
                   { name: "Cameroon", image: "/assets/Cameroon.png" },
                   { name: "Kenya", image: "/assets/Kenya.webp" },
                   { name: "Nigeria", image: "/assets/Nigeria.webp" },
