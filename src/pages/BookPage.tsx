@@ -15,6 +15,7 @@ export function BookPage() {
   const [selectedTime, setSelectedTime] = useState<string>('');
   const [duration, setDuration] = useState<number>(2);
   const [showContactSales, setShowContactSales] = useState<boolean>(false);
+  const [currentStep, setCurrentStep] = useState<'booking' | 'verification' | 'confirmation'>('booking');
 
   // Form state
   const [formData, setFormData] = useState({
@@ -160,9 +161,9 @@ export function BookPage() {
                       onChange={(e) => setPitchType(e.target.value)}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-green-600"
                     >
-                      <option value="Standard">Standard 5-a-side (RWF 35,000/hour)</option>
-                      <option value="Premium">Premium Full-size (RWF 35,000/hour)</option>
-                      <option value="Championship">Championship Pro (RWF 35,000/hour)</option>
+                      <option value="Standard">Standard 5-a-side (RWF 1,000/hour)</option>
+                      <option value="Premium">Premium Full-size (RWF 1,000/hour)</option>
+                      <option value="Championship">Championship Pro (RWF 1,000/hour)</option>
                     </select>
                   </div>
 
