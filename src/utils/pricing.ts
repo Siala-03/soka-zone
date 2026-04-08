@@ -1,16 +1,16 @@
 // Pitch pricing configuration (in RWF)
-// Live pricing: 2h = 70,000 RWF (35,000 RWF per hour), minimum payment 300 RWF carried from temporary behavior.
+// Test pricing: 2h = 2,000 RWF (1,000 RWF per hour), minimum payment 300 RWF carried from temporary behavior.
 export const PITCH_PRICING = {
   Standard: {
-    base: 35000,
+    base: 1000,
     description: '5-a-side pitch',
   },
   Premium: {
-    base: 35000,
+    base: 1000,
     description: 'Full-size pitch',
   },
   Championship: {
-    base: 35000,
+    base: 1000,
     description: 'Professional-grade pitch',
   },
 } as const;
