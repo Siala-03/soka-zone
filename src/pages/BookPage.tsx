@@ -1,17 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { CheckCircle2, Calendar as CalendarIcon, Clock, CalendarCheck, CreditCard, AlertCircle, User, Mail, Phone } from 'lucide-react';
+import React, { useState } from 'react';
+import { User, Mail, Phone } from 'lucide-react';
 import { BookingCalendar } from '../components/BookingCalendar';
-import { PesaPalPayment } from '../components/PesaPalPayment';
-import { PaymentConfirmation } from '../components/PaymentConfirmation';
 import { calculateBookingPrice } from '../utils/pricing';
 
 // Local assets
 const heroImage = "/assets/field2.jpeg";
 
-type BookingStep = 'booking' | 'payment' | 'confirmation';
+type BookingStep = 'booking';
 
 export function BookPage() {
-  const [currentStep, setCurrentStep] = useState<BookingStep>('booking');
   const [pitchType, setPitchType] = useState<string>('Standard');
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedTime, setSelectedTime] = useState<string>('');
@@ -25,26 +22,6 @@ export function BookPage() {
     phone: '',
     notes: '',
   });
-
-  // Payment confirmation state
-  const [paymentSuccess, setPaymentSuccess] = useState(false);
-  const [trackingId, setTrackingId] = useState<string>('');
-  const [merchantReference, setMerchantReference] = useState<string>('');
-
-  // Check if we're coming back from a payment callback
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const trackId = params.get('tracking_id');
-    const merchantRef = params.get('merchant_reference');
-
-    if (trackId && merchantRef) {
-      setTrackingId(trackId);
-      setMerchantReference(merchantRef);
-      setCurrentStep('confirmation');
-      // Clean up the URL
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-  }, []);
 
   const amount = showContactSales ? 0 : calculateBookingPrice(pitchType as any, duration);
 
@@ -63,21 +40,8 @@ export function BookPage() {
       return;
     }
     setFormData(data);
-    setCurrentStep('payment');
-  };
-
-  const handlePaymentSuccess = (txId: string) => {
-    setTrackingId(txId);
-    setCurrentStep('confirmation');
-    setPaymentSuccess(true);
-  };
-
-  const handleNewBooking = () => {
-    setCurrentStep('booking');
-    setSelectedDate('');
-    setSelectedTime('');
-    setFormData({ name: '', email: '', phone: '', notes: '' });
-    setPaymentSuccess(false);
+    // Open PesaPal payment link directly
+    window.open('https://store.pesapal.com/sokazonepayment', '_blank');
   };
 
   return (
@@ -121,69 +85,15 @@ export function BookPage() {
       {/* Booking Section */}
       <section className="py-12">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Progress Steps */}
-          <div className="mb-12">
-            <div className="flex items-center justify-center space-x-4">
-              <div className="flex items-center">
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg transition-all duration-300 ${
-                  ['booking', 'payment', 'confirmation'].indexOf(currentStep) >= 0
-                    ? 'bg-green-600 text-white shadow-lg'
-                    : 'bg-gray-200 text-gray-400'
-                }`}>
-                  1
-                </div>
-                <div className={`w-16 h-1.5 rounded-full transition-all duration-500 ${
-                  ['payment', 'confirmation'].indexOf(currentStep) >= 0
-                    ? 'bg-green-600'
-                    : 'bg-gray-200'
-                }`}></div>
-              </div>
-              <div className="flex items-center">
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg transition-all duration-300 ${
-                  ['payment', 'confirmation'].indexOf(currentStep) >= 0
-                    ? 'bg-green-600 text-white shadow-lg'
-                    : 'bg-gray-200 text-gray-400'
-                }`}>
-                  2
-                </div>
-                <div className={`w-16 h-1.5 rounded-full transition-all duration-500 ${
-                  ['confirmation'].indexOf(currentStep) >= 0
-                    ? 'bg-green-600'
-                    : 'bg-gray-200'
-                }`}></div>
-              </div>
-              <div className="flex items-center">
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg transition-all duration-300 ${
-                  currentStep === 'confirmation'
-                    ? 'bg-green-600 text-white shadow-lg'
-                    : 'bg-gray-200 text-gray-400'
-                }`}>
-                  3
-                </div>
-              </div>
-            </div>
-            <div className="flex justify-center mt-6">
-              <div className="text-center bg-white px-6 py-2 rounded-full shadow-sm border border-gray-100">
-                <span className="text-sm font-bold text-gray-900 uppercase tracking-wider">
-                  {currentStep === 'booking' && 'Step 1: Pitch & Details'}
-                  {currentStep === 'payment' && 'Step 2: Complete Payment'}
-                  {currentStep === 'confirmation' && 'Booking Confirmed!'}
-                </span>
-              </div>
-            </div>
-          </div>
-
           {/* Booking Card */}
           <div className="card bg-white max-w-4xl mx-auto">
             <div className="animate-fade-in">
               
-              {/* STEP 1: Booking (Calendar + Details Combined) */}
-              {currentStep === 'booking' && (
-                <>
-                  <div className="mb-8">
-                    <h2 className="text-3xl font-bold text-gray-900 mb-2">Book Your Pitch</h2>
-                    <p className="text-gray-600">Select pitch, date, time, and provide your details</p>
-                  </div>
+              {/* Booking Form */}
+              <div className="mb-8">
+                <h2 className="text-3xl font-bold text-gray-900 mb-2">Book Your Pitch</h2>
+                <p className="text-gray-600">Select pitch, date, time, and provide your details</p>
+              </div>
 
                   {/* Pitch Type Selection */}
                   <div className="mb-8">
@@ -350,47 +260,8 @@ export function BookPage() {
                     onClick={() => handleBookingComplete(formData)}
                     className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-bold py-4 px-6 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl disabled:cursor-not-allowed"
                   >
-                    Proceed to Payment
+                    Pay with PesaPal
                   </button>
-                </>
-              )}
-
-              {/* STEP 2: Payment */}
-              {currentStep === 'payment' && (
-                <PesaPalPayment
-                  bookingData={{
-                    date: selectedDate,
-                    time: selectedTime,
-                    duration,
-                    pitch: pitchType,
-                    name: formData.name,
-                    phone: formData.phone,
-                    email: formData.email,
-                  }}
-                  amount={amount}
-                  onSuccess={handlePaymentSuccess}
-                  onBack={() => setCurrentStep('booking')}
-                />
-              )}
-
-              {/* STEP 3: Confirmation */}
-              {currentStep === 'confirmation' && (
-                <PaymentConfirmation
-                  trackingId={trackingId}
-                  merchantReference={merchantReference}
-                  amount={amount}
-                  bookingData={{
-                    date: selectedDate,
-                    time: selectedTime,
-                    duration,
-                    pitch: pitchType,
-                    name: formData.name,
-                    phone: formData.phone,
-                    email: formData.email,
-                  }}
-                  onNewBooking={handleNewBooking}
-                />
-              )}
             </div>
           </div>
         </div>
@@ -403,7 +274,7 @@ export function BookPage() {
             {/* Book Early */}
             <div className="text-center">
               <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <AlertCircle className="w-8 h-8 text-green-600" />
+                <span className="text-green-600 text-2xl">⏰</span>
               </div>
               <h3 className="font-bold text-gray-900 mb-2">Book Early</h3>
               <p className="text-gray-600 text-sm">After-work hours, evenings, and weekends fill fast. Don't wait.</p>
@@ -412,7 +283,7 @@ export function BookPage() {
             {/* Instant Confirmation */}
             <div className="text-center">
               <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CalendarCheck className="w-8 h-8 text-blue-600" />
+                <span className="text-blue-600 text-2xl">✓</span>
               </div>
               <h3 className="font-bold text-gray-900 mb-2">Instant Confirmation</h3>
               <p className="text-gray-600 text-sm">Get your booking code immediately after payment.</p>
@@ -421,7 +292,7 @@ export function BookPage() {
             {/* Secure Payment */}
             <div className="text-center">
               <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CreditCard className="w-8 h-8 text-green-600" />
+                <span className="text-green-600 text-2xl">🔒</span>
               </div>
               <h3 className="font-bold text-gray-900 mb-2">Secure Payment</h3>
               <p className="text-gray-600 text-sm">Safe and secure payment via PesaPal, M-Pesa, or Visa.</p>

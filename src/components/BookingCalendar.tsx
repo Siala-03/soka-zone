@@ -247,7 +247,7 @@ export function BookingCalendar({ pitchType = 'Standard', duration = 2, onDateTi
             >
               <Clock className="w-4 h-4 mx-auto mb-1" />
               <span className="font-medium">{time}</span>
-              {subscriptionBlocked && <div className="text-xs">Subscription</div>}
+              {subscriptionBlocked && <div className="text-xs">Booked</div>}
               {blockedByDuration && !subscriptionBlocked && <div className="text-xs">Blocked</div>}
               {booked && !blockedByDuration && !subscriptionBlocked && <div className="text-xs">Booked</div>}
             </button>
