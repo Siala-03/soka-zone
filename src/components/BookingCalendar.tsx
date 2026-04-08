@@ -48,6 +48,18 @@ const timeSlots = [
   '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'
 ];
 
+// Subscription-based blocked times (recurring weekly)
+// Format: dayOfWeek (0=Sunday, 1=Monday, etc.) -> array of [startHour, endHour]
+const subscriptionBlocks: Record<number, Array<[number, number]>> = {
+  1: [[19, 22]], // Monday: 19:00-22:00
+  2: [[18, 20]], // Tuesday: 18:00-20:00
+  3: [[7, 9], [18, 22]], // Wednesday: 07:00-09:00, 18:00-22:00
+  4: [[17, 22]], // Thursday: 17:00-22:00
+  5: [[7, 9], [15, 22]], // Friday: 07:00-09:00, 15:00-22:00
+  6: [[8, 12]], // Saturday: 08:00-12:00
+  0: [[7, 14]], // Sunday: 07:00-14:00
+};
+
 export function BookingCalendar({ pitchType = 'Standard', duration = 2, onDateTimeSelect }: BookingCalendarProps) {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -85,8 +97,24 @@ export function BookingCalendar({ pitchType = 'Standard', duration = 2, onDateTi
     end: endOfWeek(currentWeekStart, { weekStartsOn: 1 })
   });
 
+  // Check if a time slot is blocked by subscription
+  const isSubscriptionBlocked = (time: string) => {
+    const timeHour = parseInt(time.split(':')[0]);
+    const dayOfWeek = selectedDate.getDay();
+    
+    const blocks = subscriptionBlocks[dayOfWeek];
+    if (!blocks) return false;
+    
+    return blocks.some(([startHour, endHour]) => 
+      timeHour >= startHour && timeHour < endHour
+    );
+  };
+
   // Check if a time slot is booked (either directly or as part of a longer booking)
   const isSlotBooked = (time: string) => {
+    // First check subscription blocks
+    if (isSubscriptionBlocked(time)) return true;
+    
     const timeHour = parseInt(time.split(':')[0]);
     
     // Check if this slot is the start of a booked duration
@@ -195,6 +223,7 @@ export function BookingCalendar({ pitchType = 'Standard', duration = 2, onDateTi
       {/* Time Slots */}
       <div className="grid grid-cols-4 gap-3">
         {timeSlots.map((time) => {
+          const subscriptionBlocked = isSubscriptionBlocked(time);
           const booked = isSlotBooked(time);
           const isPastSlot = isPast(addHours(startOfDay(selectedDate), parseInt(time.split(':')[0])));
           
@@ -207,17 +236,20 @@ export function BookingCalendar({ pitchType = 'Standard', duration = 2, onDateTi
               onClick={() => handleSlotClick(time)}
               disabled={cannotBook}
               className={`p-3 rounded-lg text-center transition-all ${
-                booked 
-                  ? 'bg-red-100 text-red-600 cursor-not-allowed'
-                  : isPastSlot
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-green-50 hover:bg-green-100 text-green-700'
+                subscriptionBlocked
+                  ? 'bg-orange-100 text-orange-600 cursor-not-allowed'
+                  : booked 
+                    ? 'bg-red-100 text-red-600 cursor-not-allowed'
+                    : isPastSlot
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-green-50 hover:bg-green-100 text-green-700'
               }`}
             >
               <Clock className="w-4 h-4 mx-auto mb-1" />
               <span className="font-medium">{time}</span>
-              {blockedByDuration && <div className="text-xs">Blocked</div>}
-              {booked && !blockedByDuration && <div className="text-xs">Booked</div>}
+              {subscriptionBlocked && <div className="text-xs">Subscription</div>}
+              {blockedByDuration && !subscriptionBlocked && <div className="text-xs">Blocked</div>}
+              {booked && !blockedByDuration && !subscriptionBlocked && <div className="text-xs">Booked</div>}
             </button>
           );
         })}
