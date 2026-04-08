@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { User, Mail, Phone } from 'lucide-react';
+import { User, Mail, Phone, CheckCircle } from 'lucide-react';
 import { BookingCalendar } from '../components/BookingCalendar';
+import { PaymentVerification } from '../components/PaymentVerification';
 import { calculateBookingPrice } from '../utils/pricing';
 
 // Local assets
 const heroImage = "/assets/field2.jpeg";
 
-type BookingStep = 'booking';
+type BookingStep = 'booking' | 'verification' | 'confirmation';
 
 export function BookPage() {
   const [pitchType, setPitchType] = useState<string>('Standard');
@@ -22,6 +23,10 @@ export function BookPage() {
     phone: '',
     notes: '',
   });
+
+  // Payment verification state
+  const [orderTrackingId, setOrderTrackingId] = useState<string>('');
+  const [merchantReference, setMerchantReference] = useState<string>('');
 
   const amount = showContactSales ? 0 : calculateBookingPrice(pitchType as any, duration);
 
@@ -40,8 +45,29 @@ export function BookPage() {
       return;
     }
     setFormData(data);
-    // Open PesaPal payment link directly
+
+    // Generate tracking IDs for payment verification
+    const trackingId = `booking-${Date.now()}`;
+    const reference = `REF-${Date.now()}`;
+
+    setOrderTrackingId(trackingId);
+    setMerchantReference(reference);
+
+    // Open PesaPal payment link
     window.open('https://store.pesapal.com/sokazonepayment', '_blank');
+
+    // Go to verification step
+    setCurrentStep('verification');
+  };
+
+  const handlePaymentVerified = (paymentStatus: any) => {
+    // Payment successful - go to confirmation
+    setCurrentStep('confirmation');
+  };
+
+  const handleRetryPayment = () => {
+    // Go back to booking to try again
+    setCurrentStep('booking');
   };
 
   return (
@@ -89,11 +115,14 @@ export function BookPage() {
           <div className="card bg-white max-w-4xl mx-auto">
             <div className="animate-fade-in">
               
-              {/* Booking Form */}
-              <div className="mb-8">
-                <h2 className="text-3xl font-bold text-gray-900 mb-2">Book Your Pitch</h2>
-                <p className="text-gray-600">Select pitch, date, time, and provide your details</p>
-              </div>
+              {/* BOOKING STEP: Booking Form */}
+              {currentStep === 'booking' && (
+                <>
+                  {/* Booking Form */}
+                  <div className="mb-8">
+                    <h2 className="text-3xl font-bold text-gray-900 mb-2">Book Your Pitch</h2>
+                    <p className="text-gray-600">Select pitch, date, time, and provide your details</p>
+                  </div>
 
                   {/* Pitch Type Selection */}
                   <div className="mb-8">
@@ -262,6 +291,75 @@ export function BookPage() {
                   >
                     Pay with PesaPal
                   </button>
+                </>
+              )}
+
+              {/* VERIFICATION STEP: Payment Verification */}
+              {currentStep === 'verification' && (
+                <PaymentVerification
+                  orderTrackingId={orderTrackingId}
+                  merchantReference={merchantReference}
+                  amount={amount}
+                  bookingData={{
+                    date: selectedDate,
+                    time: selectedTime,
+                    duration,
+                    pitch: pitchType,
+                    name: formData.name,
+                    phone: formData.phone,
+                    email: formData.email,
+                  }}
+                  onSuccess={handlePaymentVerified}
+                  onRetry={handleRetryPayment}
+                />
+              )}
+
+              {/* CONFIRMATION STEP: Booking Confirmed */}
+              {currentStep === 'confirmation' && (
+                <div className="text-center space-y-6">
+                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+                    <CheckCircle className="w-8 h-8 text-green-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-3xl font-bold text-gray-900 mb-2">Booking Confirmed!</h2>
+                    <p className="text-gray-600">Your payment has been successfully processed.</p>
+                  </div>
+
+                  {/* Booking Details */}
+                  <div className="bg-gray-50 rounded-xl p-6 border border-gray-200 max-w-md mx-auto">
+                    <h3 className="font-bold text-gray-900 mb-4">Booking Details</h3>
+                    <div className="space-y-2 text-sm text-left">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Reference:</span>
+                        <span className="font-mono">{merchantReference}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Pitch:</span>
+                        <span className="font-semibold">{pitchType}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Date & Time:</span>
+                        <span className="font-semibold">{selectedDate} at {selectedTime}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Duration:</span>
+                        <span className="font-semibold">{duration} hours</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Amount Paid:</span>
+                        <span className="font-bold text-green-600">RWF {amount.toLocaleString()}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl"
+                  >
+                    Book Another Pitch
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
