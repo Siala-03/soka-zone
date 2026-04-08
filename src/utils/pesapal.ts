@@ -210,7 +210,7 @@ export function generateMerchantReference(): string {
 }
 
 // Format phone number for PesaPal (E.164 format)
-export function formatPhoneForPesaPal(phone: string, countryCode: string = '+250'): string {
+export function formatPhoneForPesaPal(phone: string, countryCode = '+250'): string {
   // Remove any non-numeric characters
   const cleaned = phone.replace(/\D/g, '');
   

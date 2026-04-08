@@ -1,13 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { 
   collection, 
-  addDoc, 
   query, 
   where, 
-  getDocs,
-  doc,
-  updateDoc,
-  deleteDoc
+  getDocs
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { 
@@ -21,7 +17,7 @@ import {
   addHours,
   startOfDay
 } from 'date-fns';
-import { Calendar, Clock, User, Phone, Mail, X, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface Booking {
   id: string;

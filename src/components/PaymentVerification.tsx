@@ -17,6 +17,7 @@ interface PaymentVerificationProps {
   };
   onSuccess: (status: PesaPalTransactionStatus) => void;
   onRetry: () => void;
+  savingBooking?: boolean;
 }
 
 export function PaymentVerification({
@@ -25,7 +26,8 @@ export function PaymentVerification({
   amount,
   bookingData,
   onSuccess,
-  onRetry
+  onRetry,
+  savingBooking = false
 }: PaymentVerificationProps) {
   const [status, setStatus] = useState<PesaPalTransactionStatus | null>(null);
   const [loading, setLoading] = useState(false);
@@ -106,11 +108,12 @@ export function PaymentVerification({
   };
 
   const getStatusMessage = () => {
+    if (savingBooking) return 'Saving your booking...';
     if (!status) return 'Checking payment status...';
 
     switch (status.order_status) {
       case 'COMPLETED':
-        return 'Payment completed successfully!';
+        return 'Payment completed! Saving booking...';
       case 'FAILED':
         return 'Payment failed';
       case 'PENDING':
@@ -214,15 +217,17 @@ export function PaymentVerification({
       <div className="flex gap-4">
         <button
           onClick={handleManualCheck}
-          disabled={loading || status?.order_status === 'COMPLETED'}
+          disabled={loading || status?.order_status === 'COMPLETED' || savingBooking}
           className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-bold py-3 px-6 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           {loading ? (
             <Loader className="w-5 h-5 animate-spin" />
+          ) : savingBooking ? (
+            <Loader className="w-5 h-5 animate-spin" />
           ) : (
             <RefreshCw className="w-5 h-5" />
           )}
-          {loading ? 'Checking...' : 'Check Status'}
+          {loading ? 'Checking...' : savingBooking ? 'Saving...' : 'Check Status'}
         </button>
 
         {status?.order_status === 'FAILED' && (

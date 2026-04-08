@@ -3,11 +3,11 @@ import { User, Mail, Phone, CheckCircle } from 'lucide-react';
 import { BookingCalendar } from '../components/BookingCalendar';
 import { PaymentVerification } from '../components/PaymentVerification';
 import { calculateBookingPrice } from '../utils/pricing';
+import { collection, addDoc } from 'firebase/firestore';
+import { db } from '../firebase';
 
 // Local assets
 const heroImage = "/assets/field2.jpeg";
-
-type BookingStep = 'booking' | 'verification' | 'confirmation';
 
 export function BookPage() {
   const [pitchType, setPitchType] = useState<string>('Standard');
@@ -27,6 +27,7 @@ export function BookPage() {
   // Payment verification state
   const [orderTrackingId, setOrderTrackingId] = useState<string>('');
   const [merchantReference, setMerchantReference] = useState<string>('');
+  const [savingBooking, setSavingBooking] = useState<boolean>(false);
 
   const amount = showContactSales ? 0 : calculateBookingPrice(pitchType as any, duration);
 
@@ -60,9 +61,36 @@ export function BookPage() {
     setCurrentStep('verification');
   };
 
-  const handlePaymentVerified = (paymentStatus: any) => {
-    // Payment successful - go to confirmation
-    setCurrentStep('confirmation');
+  const handlePaymentVerified = async (paymentStatus: any) => {
+    setSavingBooking(true);
+    try {
+      // Save the booking to Firebase
+      await addDoc(collection(db, 'bookings'), {
+        date: selectedDate,
+        time: selectedTime,
+        duration: duration,
+        pitch: pitchType,
+        name: formData.name,
+        phone: formData.phone,
+        email: formData.email,
+        status: 'confirmed',
+        merchantReference: merchantReference,
+        orderTrackingId: orderTrackingId,
+        paymentStatus: paymentStatus.order_status,
+        amount: amount,
+        createdAt: new Date(),
+        paymentDate: paymentStatus.payment_date || new Date(),
+      });
+
+      // Payment successful - go to confirmation
+      setCurrentStep('confirmation');
+    } catch (error) {
+      console.error('Error saving booking:', error);
+      alert('Payment successful but there was an error saving your booking. Please contact support with reference: ' + merchantReference);
+      setCurrentStep('confirmation');
+    } finally {
+      setSavingBooking(false);
+    }
   };
 
   const handleRetryPayment = () => {
@@ -311,6 +339,7 @@ export function BookPage() {
                   }}
                   onSuccess={handlePaymentVerified}
                   onRetry={handleRetryPayment}
+                  savingBooking={savingBooking}
                 />
               )}
 
