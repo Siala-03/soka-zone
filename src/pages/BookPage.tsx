@@ -8,16 +8,15 @@ import { calculateBookingPrice } from '../utils/pricing';
 // Local assets
 const heroImage = "/assets/field2.jpeg";
 
-type BookingStep = 'calendar' | 'details' | 'payment' | 'confirmation';
+type BookingStep = 'booking' | 'payment' | 'confirmation';
 
 export function BookPage() {
-  const [currentStep, setCurrentStep] = useState<BookingStep>('calendar');
+  const [currentStep, setCurrentStep] = useState<BookingStep>('booking');
   const [pitchType, setPitchType] = useState<string>('Standard');
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedTime, setSelectedTime] = useState<string>('');
   const [duration, setDuration] = useState<number>(2);
   const [showContactSales, setShowContactSales] = useState<boolean>(false);
-  const [detailsModalOpen, setDetailsModalOpen] = useState<boolean>(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -54,21 +53,16 @@ export function BookPage() {
     setSelectedTime(time);
   };
 
-  const handleContinueToDetails = () => {
+  const handleBookingComplete = (data: typeof formData) => {
     if (!selectedDate || !selectedTime) {
       alert('Please select a date and time');
       return;
     }
-    setDetailsModalOpen(true);
-  };
-
-  const handleDetailsContinue = (data: typeof formData) => {
     if (!data.name || !data.email || !data.phone) {
       alert('Please fill in all required fields');
       return;
     }
     setFormData(data);
-    setDetailsModalOpen(false);
     setCurrentStep('payment');
   };
 
@@ -79,7 +73,7 @@ export function BookPage() {
   };
 
   const handleNewBooking = () => {
-    setCurrentStep('calendar');
+    setCurrentStep('booking');
     setSelectedDate('');
     setSelectedTime('');
     setFormData({ name: '', email: '', phone: '', notes: '' });
@@ -132,35 +126,35 @@ export function BookPage() {
             <div className="flex items-center justify-center space-x-4">
               <div className="flex items-center">
                 <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg transition-all duration-300 ${
-                  ['calendar', 'details', 'payment', 'confirmation'].indexOf(currentStep) >= 0
+                  ['booking', 'payment', 'confirmation'].indexOf(currentStep) >= 0
                     ? 'bg-green-600 text-white shadow-lg'
                     : 'bg-gray-200 text-gray-400'
                 }`}>
                   1
                 </div>
                 <div className={`w-16 h-1.5 rounded-full transition-all duration-500 ${
-                  ['details', 'payment', 'confirmation'].indexOf(currentStep) >= 0
+                  ['payment', 'confirmation'].indexOf(currentStep) >= 0
                     ? 'bg-green-600'
                     : 'bg-gray-200'
                 }`}></div>
               </div>
               <div className="flex items-center">
                 <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg transition-all duration-300 ${
-                  ['details', 'payment', 'confirmation'].indexOf(currentStep) >= 0
+                  ['payment', 'confirmation'].indexOf(currentStep) >= 0
                     ? 'bg-green-600 text-white shadow-lg'
                     : 'bg-gray-200 text-gray-400'
                 }`}>
                   2
                 </div>
                 <div className={`w-16 h-1.5 rounded-full transition-all duration-500 ${
-                  ['payment', 'confirmation'].indexOf(currentStep) >= 0
+                  ['confirmation'].indexOf(currentStep) >= 0
                     ? 'bg-green-600'
                     : 'bg-gray-200'
                 }`}></div>
               </div>
               <div className="flex items-center">
                 <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg transition-all duration-300 ${
-                  ['payment', 'confirmation'].indexOf(currentStep) >= 0
+                  currentStep === 'confirmation'
                     ? 'bg-green-600 text-white shadow-lg'
                     : 'bg-gray-200 text-gray-400'
                 }`}>
@@ -171,9 +165,8 @@ export function BookPage() {
             <div className="flex justify-center mt-6">
               <div className="text-center bg-white px-6 py-2 rounded-full shadow-sm border border-gray-100">
                 <span className="text-sm font-bold text-gray-900 uppercase tracking-wider">
-                  {currentStep === 'calendar' && 'Step 1: Choose Date & Time'}
-                  {currentStep === 'details' && 'Step 2: Your Details'}
-                  {currentStep === 'payment' && 'Step 3: Complete Payment'}
+                  {currentStep === 'booking' && 'Step 1: Pitch & Details'}
+                  {currentStep === 'payment' && 'Step 2: Complete Payment'}
                   {currentStep === 'confirmation' && 'Booking Confirmed!'}
                 </span>
               </div>
@@ -184,16 +177,17 @@ export function BookPage() {
           <div className="card bg-white max-w-4xl mx-auto">
             <div className="animate-fade-in">
               
-              {/* STEP 1: Calendar & Time Selection */}
-              {currentStep === 'calendar' && (
+              {/* STEP 1: Booking (Calendar + Details Combined) */}
+              {currentStep === 'booking' && (
                 <>
                   <div className="mb-8">
                     <h2 className="text-3xl font-bold text-gray-900 mb-2">Book Your Pitch</h2>
-                    <p className="text-gray-600">Select your preferred date and time slot</p>
+                    <p className="text-gray-600">Select pitch, date, time, and provide your details</p>
                   </div>
 
-                  <div className="mb-6">
-                    <label className="block font-bold text-gray-900 mb-2">Pitch Type</label>
+                  {/* Pitch Type Selection */}
+                  <div className="mb-8">
+                    <label className="block font-bold text-gray-900 mb-3">Pitch Type</label>
                     <select
                       value={pitchType}
                       onChange={(e) => setPitchType(e.target.value)}
@@ -205,17 +199,9 @@ export function BookPage() {
                     </select>
                   </div>
 
-                  <BookingCalendar 
-                    pitchType={pitchType} 
-                    duration={duration}
-                    onDateTimeSelect={handleDateTimeSelect}
-                  />
-
-                  <div className="mt-8">
-                    <h3 className="font-bold text-gray-900 mb-4 flex items-center">
-                      <span className="w-8 h-8 bg-yellow-100 text-yellow-600 rounded-lg flex items-center justify-center mr-3 text-sm">3</span>
-                      Duration
-                    </h3>
+                  {/* Duration Selection */}
+                  <div className="mb-8">
+                    <label className="block font-bold text-gray-900 mb-3">Duration</label>
                     <div className="flex gap-3 flex-wrap">
                       {[2, 3, 4].map(hrs => (
                         <button
@@ -224,13 +210,13 @@ export function BookPage() {
                             setDuration(hrs);
                             setShowContactSales(false);
                           }}
-                          className={`flex-1 min-w-[100px] py-3 rounded-xl border-2 transition-all duration-200 font-bold ${
+                          className={`flex-1 min-w-[120px] py-3 rounded-xl border-2 transition-all duration-200 font-bold ${
                             duration === hrs && !showContactSales
                               ? 'border-green-600 bg-green-50 text-green-700'
                               : 'border-gray-100 bg-gray-50 hover:border-green-400 hover:bg-white text-gray-600'
                           }`}
                         >
-                          {hrs}h - RWF {calculateBookingPrice(pitchType as any, hrs).toLocaleString()}
+                          {hrs}h<br/><span className="text-sm">RWF {calculateBookingPrice(pitchType as any, hrs).toLocaleString()}</span>
                         </button>
                       ))}
                       <button
@@ -238,31 +224,25 @@ export function BookPage() {
                           setShowContactSales(true);
                           setDuration(0);
                         }}
-                        className={`flex-1 min-w-[100px] py-3 rounded-xl border-2 transition-all duration-200 font-bold ${
+                        className={`flex-1 min-w-[120px] py-3 rounded-xl border-2 transition-all duration-200 font-bold ${
                           showContactSales
                             ? 'border-blue-600 bg-blue-50 text-blue-700'
                             : 'border-gray-100 bg-gray-50 hover:border-blue-400 hover:bg-white text-gray-600'
                         }`}
                       >
-                        5h+ - Contact Sales
+                        5h+<br/><span className="text-sm">Contact Sales</span>
                       </button>
                     </div>
                     {showContactSales && (
                       <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
                         <p className="text-blue-800 text-sm">
-                          For bookings longer than 4 hours, please contact our sales team for special pricing and availability.
+                          For bookings longer than 4 hours, please contact our sales team.
                         </p>
                         <div className="mt-3 flex gap-2">
-                          <a
-                            href="tel:+250792887614"
-                            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
-                          >
-                            Call +250 792 887 614
+                          <a href="tel:+250792887614" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors">
+                            Call Sales
                           </a>
-                          <a
-                            href="mailto:sales@skzone.rw"
-                            className="bg-white border border-blue-600 text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
-                          >
+                          <a href="mailto:sales@skzone.rw" className="bg-white border border-blue-600 text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-lg text-sm font-semibold transition-colors">
                             Email Sales
                           </a>
                         </div>
@@ -270,145 +250,72 @@ export function BookPage() {
                     )}
                   </div>
 
-                  <div className="mt-12 flex justify-end">
-                    <button
-                      disabled={!selectedDate || !selectedTime || showContactSales}
-                      onClick={handleContinueToDetails}
-                      className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-1"
-                    >
-                      {showContactSales ? 'Contact Sales First' : 'Fill Details (Pop-out)'}
-                    </button>
+                  {/* Calendar & Time Selection */}
+                  <div className="mb-8">
+                    <label className="block font-bold text-gray-900 mb-3">Select Date & Time</label>
+                    <BookingCalendar 
+                      pitchType={pitchType} 
+                      duration={duration}
+                      onDateTimeSelect={handleDateTimeSelect}
+                    />
                   </div>
-                </>
-              )}
 
-              {/* STEP 2: Details Form */}
-              {detailsModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-                  <div className="w-full max-w-2xl bg-white rounded-xl shadow-2xl p-6 relative">
-                    <button
-                      onClick={() => setDetailsModalOpen(false)}
-                      className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
-                    >
-                      ✕
-                    </button>
-                    <h2 className="text-2xl font-bold mb-4">Enter Your Details</h2>
+                  {/* User Details */}
+                  <div className="mb-8 pt-8 border-t border-gray-200">
+                    <h3 className="text-2xl font-bold text-gray-900 mb-4">Your Details</h3>
                     <div className="space-y-4">
                       <div>
-                        <label className="block text-sm font-semibold text-gray-900 mb-1">Full Name *</label>
-                        <input
-                          className="w-full border border-gray-300 rounded-lg px-3 py-2"
-                          value={formData.name}
-                          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                          placeholder="John Doe"
-                        />
+                        <label className="block text-sm font-semibold text-gray-900 mb-2">Full Name *</label>
+                        <div className="relative">
+                          <User className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+                          <input
+                            type="text"
+                            value={formData.name}
+                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-green-600"
+                            placeholder="John Doe"
+                          />
+                        </div>
                       </div>
+
                       <div>
-                        <label className="block text-sm font-semibold text-gray-900 mb-1">Email *</label>
-                        <input
-                          className="w-full border border-gray-300 rounded-lg px-3 py-2"
-                          value={formData.email}
-                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                          placeholder="john@example.com"
-                        />
+                        <label className="block text-sm font-semibold text-gray-900 mb-2">Email Address *</label>
+                        <div className="relative">
+                          <Mail className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+                          <input
+                            type="email"
+                            value={formData.email}
+                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-green-600"
+                            placeholder="john@example.com"
+                          />
+                        </div>
                       </div>
+
                       <div>
-                        <label className="block text-sm font-semibold text-gray-900 mb-1">Phone *</label>
-                        <input
-                          className="w-full border border-gray-300 rounded-lg px-3 py-2"
-                          value={formData.phone}
-                          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                          placeholder="+250 7XX XXX XXX"
-                        />
+                        <label className="block text-sm font-semibold text-gray-900 mb-2">Phone Number *</label>
+                        <div className="relative">
+                          <Phone className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+                          <input
+                            type="tel"
+                            value={formData.phone}
+                            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-green-600"
+                            placeholder="+250 7XX XXX XXX"
+                          />
+                        </div>
                       </div>
+
                       <div>
-                        <label className="block text-sm font-semibold text-gray-900 mb-1">Notes</label>
+                        <label className="block text-sm font-semibold text-gray-900 mb-2">Notes (Optional)</label>
                         <textarea
-                          className="w-full border border-gray-300 rounded-lg px-3 py-2"
                           value={formData.notes}
                           onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                          rows={3}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-green-600"
                           placeholder="Any special requests..."
+                          rows={3}
                         />
                       </div>
-                    </div>
-                    <div className="mt-6 flex justify-end gap-2">
-                      <button
-                        onClick={() => setDetailsModalOpen(false)}
-                        className="px-4 py-2 rounded-lg border border-gray-300"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={() => handleDetailsContinue(formData)}
-                        className="px-4 py-2 rounded-lg bg-green-600 text-white"
-                      >
-                        Continue to Payment
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {currentStep === 'details' && (
-                <>
-                  <div className="mb-8">
-                    <h2 className="text-3xl font-bold text-gray-900 mb-2">Your Details</h2>
-                    <p className="text-gray-600">Please provide your contact information</p>
-                  </div>
-
-                  <div className="space-y-6 mb-8">
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-900 mb-2">Full Name *</label>
-                      <div className="relative">
-                        <User className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                        <input
-                          type="text"
-                          value={formData.name}
-                          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                          className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-green-600"
-                          placeholder="John Doe"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-900 mb-2">Email Address *</label>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                        <input
-                          type="email"
-                          value={formData.email}
-                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                          className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-green-600"
-                          placeholder="john@example.com"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-900 mb-2">Phone Number *</label>
-                      <div className="relative">
-                        <Phone className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                        <input
-                          type="tel"
-                          value={formData.phone}
-                          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                          className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-green-600"
-                          placeholder="+254 7XX XXX XXX"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-900 mb-2">Additional Notes</label>
-                      <textarea
-                        value={formData.notes}
-                        onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-green-600"
-                        placeholder="Any special requests or notes..."
-                        rows={4}
-                      />
                     </div>
                   </div>
 
@@ -422,7 +329,7 @@ export function BookPage() {
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Date & Time:</span>
-                        <span className="font-semibold">{selectedDate} at {selectedTime}</span>
+                        <span className="font-semibold">{selectedDate ? `${selectedDate} at ${selectedTime}` : 'Not selected'}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Duration:</span>
@@ -431,30 +338,24 @@ export function BookPage() {
                       <div className="border-t border-gray-300 pt-2 mt-2 flex justify-between">
                         <span className="font-bold text-gray-900">Total Amount:</span>
                         <span className="text-2xl font-bold text-green-600">
-                          RWF {showContactSales ? 'Contact Sales' : amount.toLocaleString()}
+                          {showContactSales ? 'Contact Sales' : `RWF ${amount.toLocaleString()}`}
                         </span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex justify-between gap-4">
-                    <button
-                      onClick={() => setCurrentStep('calendar')}
-                      className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-900 font-bold py-3 px-6 rounded-lg transition-all duration-300"
-                    >
-                      Back
-                    </button>
-                    <button
-                      onClick={() => handleDetailsContinue(formData)}
-                      className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
-                    >
-                      Continue to Payment
-                    </button>
-                  </div>
+                  {/* Proceed Button */}
+                  <button
+                    disabled={!selectedDate || !selectedTime || showContactSales}
+                    onClick={() => handleBookingComplete(formData)}
+                    className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-bold py-4 px-6 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl disabled:cursor-not-allowed"
+                  >
+                    Proceed to Payment
+                  </button>
                 </>
               )}
 
-              {/* STEP 3: Payment */}
+              {/* STEP 2: Payment */}
               {currentStep === 'payment' && (
                 <PesaPalPayment
                   bookingData={{
@@ -468,11 +369,11 @@ export function BookPage() {
                   }}
                   amount={amount}
                   onSuccess={handlePaymentSuccess}
-                  onBack={() => setCurrentStep('details')}
+                  onBack={() => setCurrentStep('booking')}
                 />
               )}
 
-              {/* STEP 4: Confirmation */}
+              {/* STEP 3: Confirmation */}
               {currentStep === 'confirmation' && (
                 <PaymentConfirmation
                   trackingId={trackingId}

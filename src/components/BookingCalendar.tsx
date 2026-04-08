@@ -51,16 +51,7 @@ const timeSlots = [
 export function BookingCalendar({ pitchType = 'Standard', duration = 2, onDateTimeSelect }: BookingCalendarProps) {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [bookings, setBookings] = useState<Booking[]>([]);
-  const [showForm, setShowForm] = useState(false);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
-    name: '',
-    phone: '',
-    email: '',
-    notes: ''
-  });
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
   const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
 
   // Fetch bookings for selected date and pitch
@@ -143,25 +134,7 @@ export function BookingCalendar({ pitchType = 'Standard', duration = 2, onDateTi
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
 
-    // Commented out for testing - BookPage now handles booking flow
-    // setTimeout(() => {
-    //   setLoading(false);
-    //   setSuccess(true);
-    //   setTimeout(() => {
-    //     setShowForm(false);
-    //     setSuccess(false);
-    //     setFormData({ name: '', phone: '', email: '', notes: '' });
-    //   }, 5000);
-    // }, 500);
-
-    // For now, just close the form
-    setLoading(false);
-    setShowForm(false);
-  };
 
   const goToPrevWeek = () => {
     setCurrentWeekStart(addDays(currentWeekStart, -7));
@@ -250,105 +223,7 @@ export function BookingCalendar({ pitchType = 'Standard', duration = 2, onDateTi
         })}
       </div>
 
-      {/* Booking Form Modal */}
-      {showForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 pt-20 p-4 overflow-y-auto">
-          <div className="bg-white rounded-xl shadow-2xl max-w-xs w-full p-3 relative">
-            <button 
-              onClick={() => setShowForm(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
-            >
-              <X className="w-6 h-6" />
-            </button>
 
-            {success ? (
-              <div className="text-center py-8">
-                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2">
-                  <CheckCircle className="w-6 h-6 text-green-600" />
-                </div>
-                <h3 className="text-lg font-bold text-gray-800 mb-1">Booking Confirmed!</h3>
-                <p className="text-gray-600 text-sm mb-3">
-                  Your booking has been submitted successfully.
-                </p>
-                <p className="text-gray-500 text-xs">
-                  Selected: {format(selectedDate, 'MMMM d, yyyy')} at {selectedTime} for {duration} hour{duration > 1 ? 's' : ''}
-                </p>
-              </div>
-            ) : (
-              <>
-                <h3 className="text-lg font-bold mb-1">Complete Booking</h3>
-                <p className="text-gray-600 mb-4 text-sm">
-                  {format(selectedDate, 'EEEE, MMMM d, yyyy')} at {selectedTime} ({duration} hour{duration > 1 ? 's' : ''})
-                </p>
-
-                <form onSubmit={handleSubmit} className="space-y-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      <User className="w-4 h-4 inline mr-1" /> Full Name *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={formData.name}
-                      onChange={(e) => setFormData({...formData, name: e.target.value})}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                      placeholder="Enter your name"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      <Phone className="w-4 h-4 inline mr-1" /> Phone Number *
-                    </label>
-                    <input
-                      type="tel"
-                      required
-                      value={formData.phone}
-                      onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                      placeholder="+250 xxx xxx xxx"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      <Mail className="w-4 h-4 inline mr-1" /> Email Address
-                    </label>
-                    <input
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => setFormData({...formData, email: e.target.value})}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                      placeholder="your@email.com"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Additional Notes
-                    </label>
-                    <textarea
-                      value={formData.notes}
-                      onChange={(e) => setFormData({...formData, notes: e.target.value})}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                      rows={2}
-                      placeholder="Any special requests?"
-                    />
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full bg-green-600 hover:bg-green-700 text-white py-2 text-sm rounded-lg font-semibold transition-colors disabled:opacity-50"
-                  >
-                    {loading ? 'Processing...' : 'Confirm Booking'}
-                  </button>
-                </form>
-              </>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
