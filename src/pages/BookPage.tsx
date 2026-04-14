@@ -1,10 +1,7 @@
 import { useState } from 'react';
 import { BookingCalendar } from '../components/BookingCalendar';
 import { PesaPalPayment } from '../components/PesaPalPayment';
-import { PaymentVerification } from '../components/PaymentVerification';
 import { calculateBookingPrice } from '../utils/pricing';
-import { collection, addDoc } from 'firebase/firestore';
-import { db } from '../firebase';
 
 const heroImage = '/assets/field2.jpeg';
 
@@ -16,44 +13,16 @@ type BookingSelection = {
   notes?: string;
 };
 
-type BookingData = BookingSelection & {
-  name: string;
-  phone: string;
-  email: string;
-};
-
-type PaymentSession = {
-  merchantReference: string;
-  orderTrackingId: string;
-  redirectUrl: string;
-  bookingData: BookingData;
-};
-
-type PaymentInitiatedPayload = {
-  merchantReference: string;
-  orderTrackingId: string;
-  redirectUrl: string;
-  bookingData: BookingSelection & {
-    name?: string;
-    phone?: string;
-    email?: string;
-  };
-};
-
 export function BookPage() {
   const [pitchType, setPitchType] = useState<string>('Standard');
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedTime, setSelectedTime] = useState<string>('');
   const [duration, setDuration] = useState<number>(2);
   const [showContactSales, setShowContactSales] = useState<boolean>(false);
-  const [currentStep, setCurrentStep] = useState<'booking' | 'payment' | 'verification' | 'confirmation'>('booking');
+  const [currentStep, setCurrentStep] = useState<'booking' | 'payment'>('booking');
 
   const [notes, setNotes] = useState('');
   const [bookingSelection, setBookingSelection] = useState<BookingSelection | null>(null);
-  const [bookingData, setBookingData] = useState<BookingData | null>(null);
-  const [paymentSession, setPaymentSession] = useState<PaymentSession | null>(null);
-  const [savingBooking, setSavingBooking] = useState<boolean>(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
 
   const amount = showContactSales ? 0 : calculateBookingPrice(pitchType as any, duration);
 
@@ -83,59 +52,6 @@ export function BookPage() {
     setCurrentStep('payment');
   };
 
-  const handlePaymentInitiated = (session: PaymentInitiatedPayload) => {
-    if (!session.bookingData.name || !session.bookingData.phone || !session.bookingData.email) {
-      setSaveError('Missing booking contact details. Please try again.');
-      return;
-    }
-
-    setBookingData({
-      ...session.bookingData,
-      name: session.bookingData.name,
-      phone: session.bookingData.phone,
-      email: session.bookingData.email,
-    });
-    setPaymentSession({
-      merchantReference: session.merchantReference,
-      orderTrackingId: session.orderTrackingId,
-      redirectUrl: session.redirectUrl,
-      bookingData: {
-        ...session.bookingData,
-        name: session.bookingData.name,
-        phone: session.bookingData.phone,
-        email: session.bookingData.email,
-      },
-    });
-    setCurrentStep('verification');
-  };
-
-  const handlePaymentVerified = async (paymentStatus: any) => {
-    if (!bookingData || !paymentSession) return;
-
-    setSavingBooking(true);
-    setSaveError(null);
-
-    try {
-      await addDoc(collection(db, 'bookings'), {
-        ...bookingData,
-        status: 'confirmed',
-        merchantReference: paymentSession.merchantReference,
-        orderTrackingId: paymentSession.orderTrackingId,
-        paymentStatus: paymentStatus.order_status,
-        amount,
-        createdAt: new Date(),
-        paymentDate: paymentStatus.payment_date || new Date(),
-      });
-      setCurrentStep('confirmation');
-    } catch (error) {
-      console.error('Error saving booking:', error);
-      setSaveError('Booking save failed. Please contact support if the payment was successful.');
-      setCurrentStep('confirmation');
-    } finally {
-      setSavingBooking(false);
-    }
-  };
-
   const handleRestart = () => {
     setPitchType('Standard');
     setSelectedDate('');
@@ -144,9 +60,6 @@ export function BookPage() {
     setShowContactSales(false);
     setNotes('');
     setBookingSelection(null);
-    setBookingData(null);
-    setPaymentSession(null);
-    setSaveError(null);
     setCurrentStep('booking');
   };
 
@@ -161,7 +74,7 @@ export function BookPage() {
           <div className="max-w-4xl">
             <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">Book Your Pitch and Pay Securely</h1>
             <p className="text-xl text-white/95 mb-6">
-              Choose your slot, continue to secure checkout, and complete payment through PesaPal card checkout.
+              Choose your slot and continue to PesaPal.
             </p>
             <div className="flex justify-center gap-4 text-white/90 text-sm">
               <span className="flex items-center gap-2">
@@ -286,115 +199,11 @@ export function BookPage() {
                 {currentStep === 'payment' && bookingSelection && (
                   <div>
                     <div className="mb-6">
-                      <h2 className="text-3xl font-bold text-gray-900 mb-2">Confirm Payment</h2>
-                      <p className="text-gray-600">Add the booking contact we should use, then continue to secure PesaPal checkout.</p>
+                      <h2 className="text-3xl font-bold text-gray-900 mb-2">Payment</h2>
                     </div>
                     <PesaPalPayment
-                      bookingData={bookingSelection}
-                      amount={amount}
                       onBack={() => setCurrentStep('booking')}
-                      onPaymentInitiated={handlePaymentInitiated}
                     />
-                  </div>
-                )}
-
-                {currentStep === 'verification' && paymentSession && bookingData && (
-                  <div>
-                    <div className="mb-6">
-                      <h2 className="text-3xl font-bold text-gray-900 mb-2">Verify Payment</h2>
-                      <p className="text-gray-600">After completing your PesaPal payment, return here and let us confirm your booking automatically.</p>
-                    </div>
-                    <PaymentVerification
-                      orderTrackingId={paymentSession.orderTrackingId}
-                      merchantReference={paymentSession.merchantReference}
-                      amount={amount}
-                      bookingData={bookingData}
-                      onSuccess={handlePaymentVerified}
-                      onRetry={() => setCurrentStep('payment')}
-                      savingBooking={savingBooking}
-                    />
-                  </div>
-                )}
-
-                {currentStep === 'confirmation' && bookingData && paymentSession && (
-                  <div className="space-y-8">
-                    <div className="text-center">
-                      <h2 className="text-4xl font-bold text-gray-900">Booking Confirmed</h2>
-                      <p className="mx-auto mt-3 max-w-2xl text-gray-600">
-                        Your booking is confirmed and your payment has been verified. Please save your reference number.
-                      </p>
-                    </div>
-
-                    <div className="grid gap-6 lg:grid-cols-2">
-                      <div className="rounded-3xl border border-green-200 bg-green-50 p-6">
-                        <h3 className="text-lg font-semibold text-green-900 mb-4">Booking Details</h3>
-                        <div className="space-y-3 text-sm text-gray-700">
-                          <div className="flex justify-between">
-                            <span>Pitch</span>
-                            <span className="font-semibold">{bookingData.pitch}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Date</span>
-                            <span className="font-semibold">{bookingData.date}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Time</span>
-                            <span className="font-semibold">{bookingData.time}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Duration</span>
-                            <span className="font-semibold">{bookingData.duration} hours</span>
-                          </div>
-                          <div className="flex justify-between pt-3 border-t border-green-200">
-                            <span className="font-semibold">Paid</span>
-                            <span className="font-semibold text-green-700">RWF {amount.toLocaleString()}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="rounded-3xl border border-gray-200 bg-white p-6">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Payment Reference</h3>
-                        <div className="space-y-3 text-sm text-gray-700">
-                          <div>
-                            <p className="text-gray-500">Merchant reference</p>
-                            <p className="font-mono break-all">{paymentSession.merchantReference}</p>
-                          </div>
-                          <div>
-                            <p className="text-gray-500">PesaPal tracking ID</p>
-                            <p className="font-mono break-all">{paymentSession.orderTrackingId}</p>
-                          </div>
-                          <div>
-                            <p className="text-gray-500">Customer</p>
-                            <p>{bookingData.name}</p>
-                          </div>
-                          <div>
-                            <p className="text-gray-500">Phone</p>
-                            <p>{bookingData.phone}</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {saveError && (
-                      <div className="rounded-3xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-                        {saveError}
-                      </div>
-                    )}
-
-                    <div className="flex flex-col gap-4 sm:flex-row">
-                      <button
-                        onClick={handleRestart}
-                        className="rounded-2xl border border-green-600 bg-white px-6 py-4 font-semibold text-green-700 transition hover:bg-green-50"
-                      >
-                        Book Another Slot
-                      </button>
-                      <a
-                        href={`mailto:support@skzone.rw?subject=Booking%20Reference%20${paymentSession.merchantReference}`}
-                        className="rounded-2xl bg-green-600 px-6 py-4 text-center font-semibold text-white transition hover:bg-green-700"
-                      >
-                        Contact Support
-                      </a>
-                    </div>
                   </div>
                 )}
               </div>
@@ -405,20 +214,19 @@ export function BookPage() {
                     <p className="text-sm uppercase tracking-[0.2em] text-green-200">Soka Zone Booking</p>
                     <h3 className="mt-3 text-2xl font-bold">Easy booking. Trusted payment.</h3>
                   </div>
-                  <div className="space-y-4 text-sm leading-7">
-                    <p>Continue to the hosted PesaPal payment page and complete the booking with card payment.</p>
-                    <p>Your booking contact is collected during the payment step, not on the slot selection screen.</p>
-                    <p>After payment, return to this page to verify and confirm your booking.</p>
-                  </div>
                   <div className="rounded-3xl border border-white/20 bg-white/10 p-5">
                     <p className="text-sm font-semibold uppercase tracking-[0.2em] text-green-200">Booking steps</p>
                     <ol className="mt-4 space-y-3 text-sm text-white/90">
                       <li>1. Select your slot</li>
-                      <li>2. Review payment contact</li>
-                      <li>3. Continue to PesaPal</li>
-                      <li>4. Confirm your booking</li>
+                      <li>2. Continue to PesaPal</li>
                     </ol>
                   </div>
+                  <button
+                    onClick={handleRestart}
+                    className="rounded-2xl border border-white/30 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/20"
+                  >
+                    Start Over
+                  </button>
                 </div>
               </div>
             </div>
