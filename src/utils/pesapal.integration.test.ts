@@ -4,7 +4,8 @@ import { initiatePesaPalPayment, getPesaPalPaymentStatus, formatPhoneForPesaPal 
 
 // Mock axios for integration testing
 vi.mock('axios')
-const mockedAxios = vi.mocked(axios)
+const mockedAxiosPost = vi.mocked(axios.post)
+const mockedAxiosGet = vi.mocked(axios.get)
 
 describe('PesaPal Integration Flow', () => {
   beforeEach(() => {
@@ -13,7 +14,7 @@ describe('PesaPal Integration Flow', () => {
 
   it('should complete a full payment flow simulation', async () => {
     // Step 1: Mock payment initiation through the internal API
-    mockedAxios.post.mockResolvedValueOnce({
+    mockedAxiosPost.mockResolvedValueOnce({
       data: {
         order_tracking_id: 'PESAPAL_SANDBOX_12345',
         merchant_reference: 'SKZONE-TEST-001',
@@ -24,7 +25,7 @@ describe('PesaPal Integration Flow', () => {
     })
 
     // Step 2: Mock status check - initially pending
-    mockedAxios.get.mockResolvedValueOnce({
+    mockedAxiosGet.mockResolvedValueOnce({
       data: {
         order_id: 'PESAPAL_SANDBOX_12345',
         order_status: 'PENDING',
@@ -36,7 +37,7 @@ describe('PesaPal Integration Flow', () => {
     })
 
     // Step 3: Mock status check - completed
-    mockedAxios.get.mockResolvedValueOnce({
+    mockedAxiosGet.mockResolvedValueOnce({
       data: {
         order_id: 'PESAPAL_SANDBOX_12345',
         order_status: 'COMPLETED',
@@ -69,7 +70,7 @@ describe('PesaPal Integration Flow', () => {
     expect(initiationResult.error).toBe(false)
     expect(initiationResult.data?.order_tracking_id).toBe('PESAPAL_SANDBOX_12345')
     expect(initiationResult.data?.merchant_reference).toBe('SKZONE-TEST-001')
-    expect(mockedAxios.post).toHaveBeenCalledWith(
+    expect(mockedAxiosPost).toHaveBeenCalledWith(
       'http://localhost:3000/api/pesapal/submit',
       expect.objectContaining({
         phone: '+250788123456'
@@ -94,7 +95,7 @@ describe('PesaPal Integration Flow', () => {
 
   it('should handle payment failure scenarios', async () => {
     // Mock payment initiation failure
-    mockedAxios.post.mockResolvedValueOnce({
+    mockedAxiosPost.mockResolvedValueOnce({
       data: {
         error: true,
         message: 'Payment failed due to insufficient funds',
@@ -122,7 +123,7 @@ describe('PesaPal Integration Flow', () => {
   })
 
   it('should handle network errors gracefully', async () => {
-    mockedAxios.post.mockRejectedValueOnce({
+    mockedAxiosPost.mockRejectedValueOnce({
       response: {
         data: {
           error: 'Network timeout'

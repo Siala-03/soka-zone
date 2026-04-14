@@ -1,4 +1,3 @@
-import React from 'react';
 import { PageHero } from '../components/PageHero';
 import { Mail, Phone, MapPin, Clock } from 'lucide-react';
 export function ContactPage() {

@@ -1,4 +1,3 @@
-import React from 'react';
 import { PageId } from '../components/Navbar';
 
 // Local assets

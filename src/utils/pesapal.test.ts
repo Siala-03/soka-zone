@@ -12,7 +12,8 @@ import {
 
 // Mock axios
 vi.mock('axios')
-const mockedAxios = vi.mocked(axios)
+const mockedAxiosPost = vi.mocked(axios.post)
+const mockedAxiosGet = vi.mocked(axios.get)
 
 describe('PesaPal Integration Tests', () => {
   beforeEach(() => {
@@ -28,7 +29,6 @@ describe('PesaPal Integration Tests', () => {
 
   describe('initiatePesaPalPayment', () => {
     it('should successfully initiate a payment', async () => {
-      const mockTokenResponse = { data: { token: 'test_token' } }
       const mockPaymentResponse = {
         data: {
           order_tracking_id: '12345',
@@ -39,7 +39,7 @@ describe('PesaPal Integration Tests', () => {
         }
       }
 
-      mockedAxios.post.mockResolvedValueOnce(mockPaymentResponse)
+      mockedAxiosPost.mockResolvedValueOnce(mockPaymentResponse as any)
 
       const paymentRequest: PesaPalPaymentRequest = {
         id: 'test-id',
@@ -59,7 +59,7 @@ describe('PesaPal Integration Tests', () => {
       expect(result.message).toBe('Payment request initiated successfully')
       expect(result.data?.order_tracking_id).toBe('12345')
       expect(result.data?.merchant_reference).toBe('SKZONE-123-ABC')
-      expect(mockedAxios.post).toHaveBeenCalledWith(
+      expect(mockedAxiosPost).toHaveBeenCalledWith(
         'http://localhost:3000/api/pesapal/submit',
         expect.objectContaining({
           phone: '+250788123456',
@@ -77,7 +77,7 @@ describe('PesaPal Integration Tests', () => {
         }
       }
 
-      mockedAxios.post.mockResolvedValueOnce(mockPaymentResponse)
+      mockedAxiosPost.mockResolvedValueOnce(mockPaymentResponse as any)
 
       const paymentRequest: PesaPalPaymentRequest = {
         id: 'test-id',
@@ -115,7 +115,7 @@ describe('PesaPal Integration Tests', () => {
         }
       }
 
-      mockedAxios.get.mockResolvedValueOnce(mockStatusResponse)
+      mockedAxiosGet.mockResolvedValueOnce(mockStatusResponse as any)
 
       const status = await getPesaPalPaymentStatus('12345')
 
@@ -123,7 +123,7 @@ describe('PesaPal Integration Tests', () => {
       expect(status.order_status).toBe('COMPLETED')
       expect(status.amount).toBe(1000)
       expect(status.payment_method).toBe('M-Pesa')
-      expect(mockedAxios.get).toHaveBeenCalledWith(
+      expect(mockedAxiosGet).toHaveBeenCalledWith(
         'http://localhost:3000/api/pesapal/status',
         expect.objectContaining({
           params: {
@@ -134,7 +134,7 @@ describe('PesaPal Integration Tests', () => {
     })
 
     it('should handle status check failure', async () => {
-      mockedAxios.get.mockRejectedValueOnce({
+      mockedAxiosGet.mockRejectedValueOnce({
         response: {
           data: {
             error: 'Network error'

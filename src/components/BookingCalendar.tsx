@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   collection, 
   query, 
@@ -32,7 +32,7 @@ interface Booking {
 }
 
 interface BookingCalendarProps {
-  pitchType: string;
+  pitchType?: string;
   duration?: number;
   onDateTimeSelect?: (date: string, time: string) => void;
 }
@@ -58,14 +58,18 @@ const subscriptionBlocks: Record<number, Array<[number, number]>> = {
 
 export function BookingCalendar({ pitchType = 'Standard', duration = 2, onDateTimeSelect }: BookingCalendarProps) {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [bookings, setBookings] = useState<Booking[]>([]);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [bookings, setBookings] = useState<Booking[]>([]);
   const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
 
   // Fetch bookings for selected date and pitch
   useEffect(() => {
     fetchBookings();
   }, [selectedDate, pitchType, duration]);
+
+  useEffect(() => {
+    setSelectedTime(null);
+  }, [selectedDate, duration, pitchType]);
 
   const fetchBookings = async () => {
     try {
@@ -117,7 +121,6 @@ export function BookingCalendar({ pitchType = 'Standard', duration = 2, onDateTi
     const asStartSlot = bookings.some(b => {
       if (b.status === 'cancelled') return false;
       const bookingHour = parseInt(b.time.split(':')[0]);
-      const bookingDuration = b.duration || 2;
       return bookingHour === timeHour;
     });
     
@@ -154,7 +157,6 @@ export function BookingCalendar({ pitchType = 'Standard', duration = 2, onDateTi
         const dateStr = format(selectedDate, 'yyyy-MM-dd');
         onDateTimeSelect(dateStr, time);
       }
-      setShowForm(true);
     }
   };
 
@@ -222,6 +224,7 @@ export function BookingCalendar({ pitchType = 'Standard', duration = 2, onDateTi
           const subscriptionBlocked = isSubscriptionBlocked(time);
           const booked = isSlotBooked(time);
           const isPastSlot = isPast(addHours(startOfDay(selectedDate), parseInt(time.split(':')[0])));
+          const isSelected = selectedTime === time && !booked && !isPastSlot && canBookSlot(time, duration);
           
           const blockedByDuration = booked && !canBookSlot(time, duration);
           const cannotBook = booked || isPastSlot || !canBookSlot(time, duration);
@@ -238,6 +241,8 @@ export function BookingCalendar({ pitchType = 'Standard', duration = 2, onDateTi
                     ? 'bg-red-100 text-red-600 cursor-not-allowed'
                     : isPastSlot
                       ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : isSelected
+                        ? 'bg-green-700 text-white shadow-lg ring-4 ring-green-200 scale-[1.02]'
                       : 'bg-green-50 hover:bg-green-100 text-green-700'
               }`}
             >

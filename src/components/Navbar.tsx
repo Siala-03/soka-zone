@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Menu, X } from 'lucide-react';
 export type PageId = 'home' | 'pitches' | 'book' | 'organizations' | 'contact';
 interface NavbarProps {

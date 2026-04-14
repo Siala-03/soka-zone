@@ -1,30 +1,17 @@
 import { useState } from 'react';
 import { BookingCalendar } from '../components/BookingCalendar';
-import { PesaPalPayment } from '../components/PesaPalPayment';
 import { calculateBookingPrice } from '../utils/pricing';
 
 const heroImage = '/assets/field2.jpeg';
-
-type BookingSelection = {
-  date: string;
-  time: string;
-  duration: number;
-  pitch: string;
-  notes?: string;
-};
+const PESAPAL_PAYMENT_LINK = 'https://store.pesapal.com/sokazonepayment';
 
 export function BookPage() {
-  const [pitchType, setPitchType] = useState<string>('Standard');
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedTime, setSelectedTime] = useState<string>('');
   const [duration, setDuration] = useState<number>(2);
   const [showContactSales, setShowContactSales] = useState<boolean>(false);
-  const [currentStep, setCurrentStep] = useState<'booking' | 'payment'>('booking');
 
-  const [notes, setNotes] = useState('');
-  const [bookingSelection, setBookingSelection] = useState<BookingSelection | null>(null);
-
-  const amount = showContactSales ? 0 : calculateBookingPrice(pitchType as any, duration);
+  const amount = showContactSales ? 0 : calculateBookingPrice('Standard', duration);
 
   const handleDateTimeSelect = (date: string, time: string) => {
     setSelectedDate(date);
@@ -42,25 +29,7 @@ export function BookPage() {
       return;
     }
 
-    setBookingSelection({
-      pitch: pitchType,
-      duration,
-      date: selectedDate,
-      time: selectedTime,
-      notes: notes.trim() || undefined,
-    });
-    setCurrentStep('payment');
-  };
-
-  const handleRestart = () => {
-    setPitchType('Standard');
-    setSelectedDate('');
-    setSelectedTime('');
-    setDuration(2);
-    setShowContactSales(false);
-    setNotes('');
-    setBookingSelection(null);
-    setCurrentStep('booking');
+    window.location.href = PESAPAL_PAYMENT_LINK;
   };
 
   return (
@@ -73,159 +42,83 @@ export function BookPage() {
         <div className="relative h-full flex items-center justify-center text-center px-4">
           <div className="max-w-4xl">
             <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">Book Your Pitch and Pay Securely</h1>
-            <p className="text-xl text-white/95 mb-6">
-              Choose your slot and continue to PesaPal.
-            </p>
-            <div className="flex justify-center gap-4 text-white/90 text-sm">
-              <span className="flex items-center gap-2">
-                <span className="inline-block w-2 h-2 rounded-full bg-green-200" /> Secure checkout
-              </span>
-              <span className="flex items-center gap-2">
-                <span className="inline-block w-2 h-2 rounded-full bg-green-200" /> Rwanda-friendly payment
-              </span>
-              <span className="flex items-center gap-2">
-                <span className="inline-block w-2 h-2 rounded-full bg-green-200" /> Instant booking
-              </span>
-            </div>
+            <p className="text-xl text-white/95">Choose your slot and continue to PesaPal.</p>
           </div>
         </div>
       </section>
 
       <section className="py-12">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="bg-white rounded-3xl shadow-xl overflow-hidden">
-            <div className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
-              <div className="p-8 lg:p-10">
-                {currentStep === 'booking' && (
-                  <>
-                    <div className="mb-8">
-                      <h2 className="text-3xl font-bold text-gray-900 mb-2">Book Your Pitch</h2>
-                      <p className="text-gray-600">Select your pitch, choose a time, and continue to payment when you are ready.</p>
-                    </div>
-
-                    <div className="grid gap-6">
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-900 mb-2">Pitch Type</label>
-                        <select
-                          value={pitchType}
-                          onChange={(e) => setPitchType(e.target.value)}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:border-green-600"
-                        >
-                          <option value="Standard">Standard 5-a-side (RWF 1,000/hour)</option>
-                          <option value="Premium">Premium Full-size (RWF 1,000/hour)</option>
-                          <option value="Championship">Championship Pro (RWF 1,000/hour)</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-900 mb-2">Duration</label>
-                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                          {[2, 3, 4].map((hrs) => (
-                            <button
-                              key={hrs}
-                              type="button"
-                              onClick={() => {
-                                setDuration(hrs);
-                                setShowContactSales(false);
-                              }}
-                              className={`rounded-2xl border px-4 py-3 text-left transition ${
-                                duration === hrs && !showContactSales
-                                  ? 'border-green-600 bg-green-50 text-green-900'
-                                  : 'border-gray-200 bg-gray-50 text-gray-700 hover:border-green-400 hover:bg-white'
-                              }`}
-                            >
-                              <div className="text-lg font-bold">{hrs}h</div>
-                              <div className="text-sm text-gray-500">RWF {calculateBookingPrice(pitchType as any, hrs).toLocaleString()}</div>
-                            </button>
-                          ))}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setShowContactSales(true);
-                              setDuration(0);
-                            }}
-                            className={`rounded-2xl border px-4 py-3 text-left transition ${
-                              showContactSales
-                                ? 'border-blue-600 bg-blue-50 text-blue-900'
-                                : 'border-gray-200 bg-gray-50 text-gray-700 hover:border-blue-400 hover:bg-white'
-                            }`}
-                          >
-                            <div className="text-lg font-bold">5h+</div>
-                            <div className="text-sm text-gray-500">Contact Sales</div>
-                          </button>
-                        </div>
-
-                        {showContactSales && (
-                          <div className="mt-4 rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
-                            For longer bookings, contact our team to get the best slot and pricing.
-                          </div>
-                        )}
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-900 mb-2">Select Date & Time</label>
-                        <BookingCalendar pitchType={pitchType} duration={duration} onDateTimeSelect={handleDateTimeSelect} />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-900 mb-2">Additional Notes</label>
-                        <textarea
-                          value={notes}
-                          onChange={(e) => setNotes(e.target.value)}
-                          className="w-full rounded-2xl border border-gray-300 px-4 py-3 focus:outline-none focus:border-green-600"
-                          rows={4}
-                          placeholder="Tell us if you need equipment, referees, or special arrangements"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="mt-8 rounded-3xl border border-gray-200 bg-gray-50 p-6">
-                      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                          <p className="text-sm text-gray-500">Estimated total</p>
-                          <p className="text-3xl font-bold text-green-700">RWF {amount.toLocaleString()}</p>
-                        </div>
-                        <button
-                          onClick={handleBookingSubmit}
-                          className="rounded-2xl bg-green-600 px-6 py-4 font-semibold text-white shadow-lg transition hover:bg-green-700"
-                        >
-                          {showContactSales ? 'Contact Sales' : 'Continue to Payment'}
-                        </button>
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                {currentStep === 'payment' && bookingSelection && (
-                  <div>
-                    <div className="mb-6">
-                      <h2 className="text-3xl font-bold text-gray-900 mb-2">Payment</h2>
-                    </div>
-                    <PesaPalPayment
-                      onBack={() => setCurrentStep('booking')}
-                    />
-                  </div>
-                )}
+            <div className="p-8 lg:p-10">
+              <div className="mb-8">
+                <h2 className="text-3xl font-bold text-gray-900 mb-2">Book Your Pitch</h2>
+                <p className="text-gray-600">Choose a duration, select a time slot, and continue to payment.</p>
               </div>
 
-              <div className="hidden lg:block bg-green-600 p-8 text-white">
-                <div className="space-y-6">
-                  <div>
-                    <p className="text-sm uppercase tracking-[0.2em] text-green-200">Soka Zone Booking</p>
-                    <h3 className="mt-3 text-2xl font-bold">Easy booking. Trusted payment.</h3>
+              <div className="grid gap-6">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">Duration</label>
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    {[2, 3, 4].map((hrs) => (
+                      <button
+                        key={hrs}
+                        type="button"
+                        onClick={() => {
+                          setDuration(hrs);
+                          setShowContactSales(false);
+                        }}
+                        className={`rounded-2xl border px-4 py-3 text-left transition ${
+                          duration === hrs && !showContactSales
+                            ? 'border-green-700 bg-green-100 text-green-950 shadow-sm'
+                            : 'border-gray-200 bg-gray-50 text-gray-700 hover:border-green-400 hover:bg-white'
+                        }`}
+                      >
+                        <div className="text-lg font-bold">{hrs}h</div>
+                        <div className="text-sm text-gray-500">RWF {calculateBookingPrice('Standard', hrs).toLocaleString()}</div>
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowContactSales(true);
+                        setDuration(0);
+                      }}
+                      className={`rounded-2xl border px-4 py-3 text-left transition ${
+                        showContactSales
+                          ? 'border-blue-600 bg-blue-50 text-blue-900'
+                          : 'border-gray-200 bg-gray-50 text-gray-700 hover:border-blue-400 hover:bg-white'
+                      }`}
+                    >
+                      <div className="text-lg font-bold">5h+</div>
+                      <div className="text-sm text-gray-500">Contact Sales</div>
+                    </button>
                   </div>
-                  <div className="rounded-3xl border border-white/20 bg-white/10 p-5">
-                    <p className="text-sm font-semibold uppercase tracking-[0.2em] text-green-200">Booking steps</p>
-                    <ol className="mt-4 space-y-3 text-sm text-white/90">
-                      <li>1. Select your slot</li>
-                      <li>2. Continue to PesaPal</li>
-                    </ol>
+
+                  {showContactSales && (
+                    <div className="mt-4 rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
+                      For longer bookings, contact our team to get the best slot and pricing.
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">Select Date & Time</label>
+                  <BookingCalendar duration={duration} onDateTimeSelect={handleDateTimeSelect} />
+                </div>
+              </div>
+
+              <div className="mt-8 rounded-3xl border border-gray-200 bg-gray-50 p-6">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm text-gray-500">Estimated total</p>
+                    <p className="text-3xl font-bold text-green-700">RWF {amount.toLocaleString()}</p>
                   </div>
                   <button
-                    onClick={handleRestart}
-                    className="rounded-2xl border border-white/30 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/20"
+                    onClick={handleBookingSubmit}
+                    className="rounded-2xl bg-green-600 px-6 py-4 font-semibold text-white shadow-lg transition hover:bg-green-700"
                   >
-                    Start Over
+                    {showContactSales ? 'Contact Sales' : 'Continue to Payment'}
                   </button>
                 </div>
               </div>
