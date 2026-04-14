@@ -8,6 +8,13 @@ import {
 
 const heroImage = '/assets/field2.jpeg';
 const PESAPAL_PAYMENT_LINK = 'https://store.pesapal.com/sokazonepayment';
+const bookingRates = [
+  { label: 'Mon-Thu 6am-4pm', amount: '50,000' },
+  { label: 'Mon-Thu 4pm-10pm', amount: '70,000' },
+  { label: 'Friday 6am-4pm', amount: '60,000' },
+  { label: 'Friday 4pm-10pm', amount: '80,000' },
+  { label: 'Weekend', amount: '80,000' },
+];
 
 export function BookPage() {
   const [selectedDate, setSelectedDate] = useState<string>('');
@@ -64,26 +71,16 @@ export function BookPage() {
               </div>
 
               <div className="mb-8 grid gap-3 rounded-3xl border border-gray-200 bg-gray-50 p-5 text-sm text-gray-700 md:grid-cols-2 xl:grid-cols-5">
-                <div className="rounded-2xl bg-white p-4">
-                  <div className="font-semibold text-gray-900">Mon-Thu 6am-4pm</div>
-                  <div className="mt-1">RWF 50,000 / 2 hrs</div>
-                </div>
-                <div className="rounded-2xl bg-white p-4">
-                  <div className="font-semibold text-gray-900">Mon-Thu 4pm-10pm</div>
-                  <div className="mt-1">RWF 70,000 / 2 hrs</div>
-                </div>
-                <div className="rounded-2xl bg-white p-4">
-                  <div className="font-semibold text-gray-900">Friday 6am-4pm</div>
-                  <div className="mt-1">RWF 60,000 / 2 hrs</div>
-                </div>
-                <div className="rounded-2xl bg-white p-4">
-                  <div className="font-semibold text-gray-900">Friday 4pm-10pm</div>
-                  <div className="mt-1">RWF 80,000 / 2 hrs</div>
-                </div>
-                <div className="rounded-2xl bg-white p-4 md:col-span-2 xl:col-span-1">
-                  <div className="font-semibold text-gray-900">Weekend</div>
-                  <div className="mt-1">RWF 80,000 / 2 hrs</div>
-                </div>
+                {bookingRates.map((rate) => (
+                  <div
+                    key={rate.label}
+                    className={`rounded-2xl bg-white p-4 ${rate.label === 'Weekend' ? 'md:col-span-2 xl:col-span-1' : ''}`}
+                  >
+                    <div className="font-semibold text-gray-900">{rate.label}</div>
+                    <div className="mt-3 text-2xl font-bold text-gray-900">RWF {rate.amount}</div>
+                    <div className="mt-1 text-xs font-medium uppercase tracking-[0.18em] text-gray-500">Per 2-hour slot</div>
+                  </div>
+                ))}
               </div>
 
               <div className="grid gap-6">
@@ -103,7 +100,7 @@ export function BookPage() {
                       }`}
                     >
                       <div className="text-lg font-bold">2h</div>
-                      <div className="text-sm text-gray-500">Select a slot to see the exact rate</div>
+                      <div className="text-sm text-gray-500">Select a slot to see the total cost</div>
                     </button>
                     <button
                       type="button"
@@ -138,7 +135,7 @@ export function BookPage() {
               <div className="mt-8 rounded-3xl border border-gray-200 bg-gray-50 p-6">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <p className="text-sm text-gray-500">Estimated total</p>
+                    <p className="text-sm text-gray-500">Total cost</p>
                     {showContactSales ? (
                       <>
                         <p className="text-2xl font-bold text-blue-800">Call {SALES_PHONE}</p>
@@ -150,7 +147,7 @@ export function BookPage() {
                         {priceQuote.rateLabel && <p className="text-sm text-gray-500">{priceQuote.rateLabel}</p>}
                       </>
                     ) : (
-                      <p className="text-lg font-semibold text-gray-600">Select a date and time to see the exact rate.</p>
+                      <p className="text-lg font-semibold text-gray-600">Select a date and time to see the total cost.</p>
                     )}
                   </div>
                   <button
