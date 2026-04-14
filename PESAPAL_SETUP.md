@@ -48,16 +48,21 @@ Added dependency:
 - `axios` - For HTTP requests to PesaPal API
 
 ### Step 2: Create Environment Variables
-Create a `.env` file in the root directory:
+Create a `.env` file in the root directory for local testing:
 
 ```env
-# PesaPal Configuration
-VITE_PESAPAL_CONSUMER_KEY=your_consumer_key_here
-VITE_PESAPAL_CONSUMER_SECRET=your_consumer_secret_here
-VITE_PESAPAL_ENV=sandbox  # Change to 'production' for live
-
-# Optional: Backend API URL for notifications
+# Client-side configuration
+VITE_PESAPAL_ENV=sandbox
 VITE_API_URL=http://localhost:3000
+
+# Server-side PesaPal configuration
+PESAPAL_ENV=sandbox
+PESAPAL_CONSUMER_KEY=your_consumer_key_here
+PESAPAL_CONSUMER_SECRET=your_consumer_secret_here
+PUBLIC_SITE_URL=http://localhost:5173
+PESAPAL_CALLBACK_URL=http://localhost:5173/payment/callback
+PESAPAL_NOTIFICATION_URL=http://localhost:3000/api/pesapal/notify
+PESAPAL_NOTIFICATION_ID=your_registered_ipn_id_here
 ```
 
 ### Step 3: Get PesaPal Credentials
@@ -65,14 +70,17 @@ VITE_API_URL=http://localhost:3000
 2. Create a merchant account or sign in
 3. Navigate to Settings → API Credentials
 4. Copy your Consumer Key and Consumer Secret
-5. Add them to your `.env` file
+5. Add them to the server-side `PESAPAL_*` variables in your `.env` file
 
 ### Step 4: Configure Callback URLs
 In your PesaPal Dashboard:
-1. Go to Settings → API Credentials
-2. Set these callback URLs:
-   - **Return URL**: `https://yourdomain.com/payment/success`
-   - **Notification URL**: `https://yourdomain.com/api/pesapal/notify`
+1. Go to the IPN or notification URL registration screen
+2. Register your notification URL:
+  - **Notification URL**: `https://yourdomain.com/api/pesapal/notify`
+3. Copy the generated `notification_id`
+4. Save that value as `PESAPAL_NOTIFICATION_ID` in your environment
+
+Your app return URL is not added on that screen. It is sent by the application as `callback_url` on each submit-order request.
 
 For local development, you can use ngrok to expose your local server:
 ```bash
@@ -141,11 +149,10 @@ export const PITCH_PRICING = {
 ### Backend (Recommended for Production)
 Before going to production, implement:
 
-1. **Signature Verification** - Validate PesaPal webhook signatures
-2. **Server-Side Token Management** - Never expose API secrets in frontend
-3. **Database Storage** - Store bookings and payment status in production database
-4. **Webhook Handling** - Implement secure notification endpoint
-5. **Error Logging** - Log all payment transactions for audits
+1. **Database Storage** - Store bookings and payment status in production database
+2. **Webhook Handling** - Extend the notify handler to update Firestore directly if needed
+3. **Error Logging** - Log all payment transactions for audits
+4. **Operational Alerts** - Add alerts or monitoring on failed webhook deliveries
 
 ## Usage Example
 
@@ -203,17 +210,22 @@ console.log(status.order_status); // 'COMPLETED', 'FAILED', or 'PENDING'
 
 ## Deployment
 
-### Vercel/Netlify
-1. Add environment variables in dashboard
-   - `VITE_PESAPAL_CONSUMER_KEY`
-   - `VITE_PESAPAL_CONSUMER_SECRET`
-   - `PESAPAL_CONSUMER_SECRET` (same as VITE_PESAPAL_CONSUMER_SECRET, used by serverless webhook)
-   - `VITE_FIREBASE_*` values
-2. Update PesaPal callback URLs to your production domain
-   - `https://soka-zone-peach.vercel.app/payment/success`
-   - `https://soka-zone-peach.vercel.app/api/pesapal/notify`
-3. Change `VITE_PESAPAL_ENV` to `production`
-4. Deploy and validate `GET https://soka-zone-peach.vercel.app/api/pesapal/notify` returns the health string
+### Vercel
+1. Add these environment variables in the Vercel project settings:
+  - `VITE_PESAPAL_ENV=production`
+  - `PESAPAL_ENV=production`
+  - `PESAPAL_CONSUMER_KEY`
+  - `PESAPAL_CONSUMER_SECRET`
+  - `PUBLIC_SITE_URL=https://sokazone.rw`
+  - `PESAPAL_CALLBACK_URL=https://sokazone.rw/payment/callback`
+  - `PESAPAL_NOTIFICATION_URL=https://sokazone.rw/api/pesapal/notify`
+  - `VITE_FIREBASE_*` values
+2. Leave `VITE_API_URL` empty unless the API runs on a separate domain.
+3. Update PesaPal callback URLs to your production domain:
+  - `https://sokazone.rw/payment/callback`
+  - `https://sokazone.rw/api/pesapal/notify`
+4. Deploy and validate `GET https://sokazone.rw/api/pesapal/notify` returns the health string.
+5. Use Vercel function logs to confirm that `/api/pesapal/submit`, `/api/pesapal/status`, and `/api/pesapal/notify` are executing correctly.
 
 ### Vercel serverless function
 - File added: `api/pesapal/notify.ts`
@@ -223,20 +235,20 @@ console.log(status.order_status); // 'COMPLETED', 'FAILED', or 'PENDING'
 
 ### Docker
 ```dockerfile
-ENV VITE_PESAPAL_CONSUMER_KEY=your_key
-ENV VITE_PESAPAL_CONSUMER_SECRET=your_secret
+ENV PESAPAL_CONSUMER_KEY=your_key
 ENV PESAPAL_CONSUMER_SECRET=your_secret
 ENV VITE_PESAPAL_ENV=production
+ENV PESAPAL_ENV=production
 ```
 
 ## Next Steps
 
 1. Get PesaPal credentials from their dashboard
-2. Add them to `.env` file
-3. Configure callback URLs
-4. Test with sandbox credentials
-5. Implement backend webhook handler (for production)
-6. Deploy to production environment
+2. Add them to server-side env variables
+3. Configure callback URLs in PesaPal and Vercel
+4. Test with sandbox credentials locally
+5. Deploy to Vercel production
+6. Run a live low-value MTN MoMo payment test
 
 ## Support
 

@@ -1,13 +1,44 @@
-import React, { useState } from 'react';
-import { User, Mail, Phone, CheckCircle } from 'lucide-react';
+import { useState } from 'react';
 import { BookingCalendar } from '../components/BookingCalendar';
+import { PesaPalPayment } from '../components/PesaPalPayment';
 import { PaymentVerification } from '../components/PaymentVerification';
 import { calculateBookingPrice } from '../utils/pricing';
 import { collection, addDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 
-// Local assets
-const heroImage = "/assets/field2.jpeg";
+const heroImage = '/assets/field2.jpeg';
+
+type BookingSelection = {
+  date: string;
+  time: string;
+  duration: number;
+  pitch: string;
+  notes?: string;
+};
+
+type BookingData = BookingSelection & {
+  name: string;
+  phone: string;
+  email: string;
+};
+
+type PaymentSession = {
+  merchantReference: string;
+  orderTrackingId: string;
+  redirectUrl: string;
+  bookingData: BookingData;
+};
+
+type PaymentInitiatedPayload = {
+  merchantReference: string;
+  orderTrackingId: string;
+  redirectUrl: string;
+  bookingData: BookingSelection & {
+    name?: string;
+    phone?: string;
+    email?: string;
+  };
+};
 
 export function BookPage() {
   const [pitchType, setPitchType] = useState<string>('Standard');
@@ -15,20 +46,14 @@ export function BookPage() {
   const [selectedTime, setSelectedTime] = useState<string>('');
   const [duration, setDuration] = useState<number>(2);
   const [showContactSales, setShowContactSales] = useState<boolean>(false);
-  const [currentStep, setCurrentStep] = useState<'booking' | 'verification' | 'confirmation'>('booking');
+  const [currentStep, setCurrentStep] = useState<'booking' | 'payment' | 'verification' | 'confirmation'>('booking');
 
-  // Form state
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    notes: '',
-  });
-
-  // Payment verification state
-  const [orderTrackingId, setOrderTrackingId] = useState<string>('');
-  const [merchantReference, setMerchantReference] = useState<string>('');
+  const [notes, setNotes] = useState('');
+  const [bookingSelection, setBookingSelection] = useState<BookingSelection | null>(null);
+  const [bookingData, setBookingData] = useState<BookingData | null>(null);
+  const [paymentSession, setPaymentSession] = useState<PaymentSession | null>(null);
   const [savingBooking, setSavingBooking] = useState<boolean>(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const amount = showContactSales ? 0 : calculateBookingPrice(pitchType as any, duration);
 
@@ -37,393 +62,365 @@ export function BookPage() {
     setSelectedTime(time);
   };
 
-  const handleBookingComplete = (data: typeof formData) => {
+  const handleBookingSubmit = () => {
+    if (showContactSales) {
+      window.location.href = 'mailto:sales@skzone.rw';
+      return;
+    }
+
     if (!selectedDate || !selectedTime) {
-      alert('Please select a date and time');
+      alert('Please select both date and time before continuing.');
       return;
     }
-    if (!data.name || !data.email || !data.phone) {
-      alert('Please fill in all required fields');
+
+    setBookingSelection({
+      pitch: pitchType,
+      duration,
+      date: selectedDate,
+      time: selectedTime,
+      notes: notes.trim() || undefined,
+    });
+    setCurrentStep('payment');
+  };
+
+  const handlePaymentInitiated = (session: PaymentInitiatedPayload) => {
+    if (!session.bookingData.name || !session.bookingData.phone || !session.bookingData.email) {
+      setSaveError('Missing booking contact details. Please try again.');
       return;
     }
-    setFormData(data);
 
-    // Generate tracking IDs for payment verification
-    const trackingId = `booking-${Date.now()}`;
-    const reference = `REF-${Date.now()}`;
-
-    setOrderTrackingId(trackingId);
-    setMerchantReference(reference);
-
-    // Open PesaPal payment link
-    window.open('https://store.pesapal.com/sokazonepayment', '_blank');
-
-    // Go to verification step
+    setBookingData({
+      ...session.bookingData,
+      name: session.bookingData.name,
+      phone: session.bookingData.phone,
+      email: session.bookingData.email,
+    });
+    setPaymentSession({
+      merchantReference: session.merchantReference,
+      orderTrackingId: session.orderTrackingId,
+      redirectUrl: session.redirectUrl,
+      bookingData: {
+        ...session.bookingData,
+        name: session.bookingData.name,
+        phone: session.bookingData.phone,
+        email: session.bookingData.email,
+      },
+    });
     setCurrentStep('verification');
   };
 
   const handlePaymentVerified = async (paymentStatus: any) => {
+    if (!bookingData || !paymentSession) return;
+
     setSavingBooking(true);
+    setSaveError(null);
+
     try {
-      // Save the booking to Firebase
       await addDoc(collection(db, 'bookings'), {
-        date: selectedDate,
-        time: selectedTime,
-        duration: duration,
-        pitch: pitchType,
-        name: formData.name,
-        phone: formData.phone,
-        email: formData.email,
+        ...bookingData,
         status: 'confirmed',
-        merchantReference: merchantReference,
-        orderTrackingId: orderTrackingId,
+        merchantReference: paymentSession.merchantReference,
+        orderTrackingId: paymentSession.orderTrackingId,
         paymentStatus: paymentStatus.order_status,
-        amount: amount,
+        amount,
         createdAt: new Date(),
         paymentDate: paymentStatus.payment_date || new Date(),
       });
-
-      // Payment successful - go to confirmation
       setCurrentStep('confirmation');
     } catch (error) {
       console.error('Error saving booking:', error);
-      alert('Payment successful but there was an error saving your booking. Please contact support with reference: ' + merchantReference);
+      setSaveError('Booking save failed. Please contact support if the payment was successful.');
       setCurrentStep('confirmation');
     } finally {
       setSavingBooking(false);
     }
   };
 
-  const handleRetryPayment = () => {
-    // Go back to booking to try again
+  const handleRestart = () => {
+    setPitchType('Standard');
+    setSelectedDate('');
+    setSelectedTime('');
+    setDuration(2);
+    setShowContactSales(false);
+    setNotes('');
+    setBookingSelection(null);
+    setBookingData(null);
+    setPaymentSession(null);
+    setSaveError(null);
     setCurrentStep('booking');
   };
 
   return (
     <div className="bg-gray-50 min-h-screen">
-      {/* Hero Section */}
       <section className="relative h-[400px] md:h-[500px]">
         <div className="absolute inset-0">
-          <img 
-            src={heroImage} 
-            alt="Teams ready to play at Soka Zone" 
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-green-900/90 to-blue-900/80"></div>
+          <img src={heroImage} alt="Teams ready to play at Soka Zone" className="w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-r from-green-900/90 to-blue-900/80" />
         </div>
         <div className="relative h-full flex items-center justify-center text-center px-4">
           <div className="max-w-4xl">
-            <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-              Lock In the Game Before Someone Else Does
-            </h1>
+            <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">Book Your Pitch and Pay Securely</h1>
             <p className="text-xl text-white/95 mb-6">
-              The best games happen because the pitch was booked, the time was fixed, and the players showed up.
+              Choose your slot, continue to secure checkout, and complete payment through PesaPal card checkout.
             </p>
             <div className="flex justify-center gap-4 text-white/90 text-sm">
-              <span className="flex items-center">
-                <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                </svg>
-                Instant Confirmation
+              <span className="flex items-center gap-2">
+                <span className="inline-block w-2 h-2 rounded-full bg-green-200" /> Secure checkout
               </span>
-              <span className="flex items-center">
-                <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                </svg>
-                Secure Payment
+              <span className="flex items-center gap-2">
+                <span className="inline-block w-2 h-2 rounded-full bg-green-200" /> Rwanda-friendly payment
+              </span>
+              <span className="flex items-center gap-2">
+                <span className="inline-block w-2 h-2 rounded-full bg-green-200" /> Instant booking
               </span>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Booking Section */}
       <section className="py-12">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Booking Card */}
-          <div className="card bg-white max-w-4xl mx-auto">
-            <div className="animate-fade-in">
-              
-              {/* BOOKING STEP: Booking Form */}
-              {currentStep === 'booking' && (
-                <>
-                  {/* Booking Form */}
-                  <div className="mb-8">
-                    <h2 className="text-3xl font-bold text-gray-900 mb-2">Book Your Pitch</h2>
-                    <p className="text-gray-600">Select pitch, date, time, and provide your details</p>
-                  </div>
-
-                  {/* Pitch Type Selection */}
-                  <div className="mb-8">
-                    <label className="block font-bold text-gray-900 mb-3">Pitch Type</label>
-                    <select
-                      value={pitchType}
-                      onChange={(e) => setPitchType(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-green-600"
-                    >
-                      <option value="Standard">Standard 5-a-side (RWF 1,000/hour)</option>
-                      <option value="Premium">Premium Full-size (RWF 1,000/hour)</option>
-                      <option value="Championship">Championship Pro (RWF 1,000/hour)</option>
-                    </select>
-                  </div>
-
-                  {/* Duration Selection */}
-                  <div className="mb-8">
-                    <label className="block font-bold text-gray-900 mb-3">Duration</label>
-                    <div className="flex gap-3 flex-wrap">
-                      {[2, 3, 4].map(hrs => (
-                        <button
-                          key={hrs}
-                          onClick={() => {
-                            setDuration(hrs);
-                            setShowContactSales(false);
-                          }}
-                          className={`flex-1 min-w-[120px] py-3 rounded-xl border-2 transition-all duration-200 font-bold ${
-                            duration === hrs && !showContactSales
-                              ? 'border-green-600 bg-green-50 text-green-700'
-                              : 'border-gray-100 bg-gray-50 hover:border-green-400 hover:bg-white text-gray-600'
-                          }`}
-                        >
-                          {hrs}h<br/><span className="text-sm">RWF {calculateBookingPrice(pitchType as any, hrs).toLocaleString()}</span>
-                        </button>
-                      ))}
-                      <button
-                        onClick={() => {
-                          setShowContactSales(true);
-                          setDuration(0);
-                        }}
-                        className={`flex-1 min-w-[120px] py-3 rounded-xl border-2 transition-all duration-200 font-bold ${
-                          showContactSales
-                            ? 'border-blue-600 bg-blue-50 text-blue-700'
-                            : 'border-gray-100 bg-gray-50 hover:border-blue-400 hover:bg-white text-gray-600'
-                        }`}
-                      >
-                        5h+<br/><span className="text-sm">Contact Sales</span>
-                      </button>
+          <div className="bg-white rounded-3xl shadow-xl overflow-hidden">
+            <div className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
+              <div className="p-8 lg:p-10">
+                {currentStep === 'booking' && (
+                  <>
+                    <div className="mb-8">
+                      <h2 className="text-3xl font-bold text-gray-900 mb-2">Book Your Pitch</h2>
+                      <p className="text-gray-600">Select your pitch, choose a time, and continue to payment when you are ready.</p>
                     </div>
-                    {showContactSales && (
-                      <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
-                        <p className="text-blue-800 text-sm">
-                          For bookings longer than 4 hours, please contact our sales team.
-                        </p>
-                        <div className="mt-3 flex gap-2">
-                          <a href="tel:+250792887614" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors">
-                            Call Sales
-                          </a>
-                          <a href="mailto:sales@skzone.rw" className="bg-white border border-blue-600 text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-lg text-sm font-semibold transition-colors">
-                            Email Sales
-                          </a>
-                        </div>
-                      </div>
-                    )}
-                  </div>
 
-                  {/* Calendar & Time Selection */}
-                  <div className="mb-8">
-                    <label className="block font-bold text-gray-900 mb-3">Select Date & Time</label>
-                    <BookingCalendar 
-                      pitchType={pitchType} 
-                      duration={duration}
-                      onDateTimeSelect={handleDateTimeSelect}
-                    />
-                  </div>
-
-                  {/* User Details */}
-                  <div className="mb-8 pt-8 border-t border-gray-200">
-                    <h3 className="text-2xl font-bold text-gray-900 mb-4">Your Details</h3>
-                    <div className="space-y-4">
+                    <div className="grid gap-6">
                       <div>
-                        <label className="block text-sm font-semibold text-gray-900 mb-2">Full Name *</label>
-                        <div className="relative">
-                          <User className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                          <input
-                            type="text"
-                            value={formData.name}
-                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-green-600"
-                            placeholder="John Doe"
-                          />
-                        </div>
+                        <label className="block text-sm font-semibold text-gray-900 mb-2">Pitch Type</label>
+                        <select
+                          value={pitchType}
+                          onChange={(e) => setPitchType(e.target.value)}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:border-green-600"
+                        >
+                          <option value="Standard">Standard 5-a-side (RWF 1,000/hour)</option>
+                          <option value="Premium">Premium Full-size (RWF 1,000/hour)</option>
+                          <option value="Championship">Championship Pro (RWF 1,000/hour)</option>
+                        </select>
                       </div>
 
                       <div>
-                        <label className="block text-sm font-semibold text-gray-900 mb-2">Email Address *</label>
-                        <div className="relative">
-                          <Mail className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                          <input
-                            type="email"
-                            value={formData.email}
-                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-green-600"
-                            placeholder="john@example.com"
-                          />
+                        <label className="block text-sm font-semibold text-gray-900 mb-2">Duration</label>
+                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                          {[2, 3, 4].map((hrs) => (
+                            <button
+                              key={hrs}
+                              type="button"
+                              onClick={() => {
+                                setDuration(hrs);
+                                setShowContactSales(false);
+                              }}
+                              className={`rounded-2xl border px-4 py-3 text-left transition ${
+                                duration === hrs && !showContactSales
+                                  ? 'border-green-600 bg-green-50 text-green-900'
+                                  : 'border-gray-200 bg-gray-50 text-gray-700 hover:border-green-400 hover:bg-white'
+                              }`}
+                            >
+                              <div className="text-lg font-bold">{hrs}h</div>
+                              <div className="text-sm text-gray-500">RWF {calculateBookingPrice(pitchType as any, hrs).toLocaleString()}</div>
+                            </button>
+                          ))}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowContactSales(true);
+                              setDuration(0);
+                            }}
+                            className={`rounded-2xl border px-4 py-3 text-left transition ${
+                              showContactSales
+                                ? 'border-blue-600 bg-blue-50 text-blue-900'
+                                : 'border-gray-200 bg-gray-50 text-gray-700 hover:border-blue-400 hover:bg-white'
+                            }`}
+                          >
+                            <div className="text-lg font-bold">5h+</div>
+                            <div className="text-sm text-gray-500">Contact Sales</div>
+                          </button>
                         </div>
+
+                        {showContactSales && (
+                          <div className="mt-4 rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
+                            For longer bookings, contact our team to get the best slot and pricing.
+                          </div>
+                        )}
                       </div>
 
                       <div>
-                        <label className="block text-sm font-semibold text-gray-900 mb-2">Phone Number *</label>
-                        <div className="relative">
-                          <Phone className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                          <input
-                            type="tel"
-                            value={formData.phone}
-                            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-green-600"
-                            placeholder="+250 7XX XXX XXX"
-                          />
-                        </div>
+                        <label className="block text-sm font-semibold text-gray-900 mb-2">Select Date & Time</label>
+                        <BookingCalendar pitchType={pitchType} duration={duration} onDateTimeSelect={handleDateTimeSelect} />
                       </div>
 
                       <div>
-                        <label className="block text-sm font-semibold text-gray-900 mb-2">Notes (Optional)</label>
+                        <label className="block text-sm font-semibold text-gray-900 mb-2">Additional Notes</label>
                         <textarea
-                          value={formData.notes}
-                          onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-green-600"
-                          placeholder="Any special requests..."
-                          rows={3}
+                          value={notes}
+                          onChange={(e) => setNotes(e.target.value)}
+                          className="w-full rounded-2xl border border-gray-300 px-4 py-3 focus:outline-none focus:border-green-600"
+                          rows={4}
+                          placeholder="Tell us if you need equipment, referees, or special arrangements"
                         />
                       </div>
                     </div>
-                  </div>
 
-                  {/* Booking Summary */}
-                  <div className="bg-gray-50 rounded-xl p-6 border border-gray-200 mb-8">
-                    <h3 className="font-bold text-gray-900 mb-4">Booking Summary</h3>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Pitch:</span>
-                        <span className="font-semibold">{pitchType}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Date & Time:</span>
-                        <span className="font-semibold">{selectedDate ? `${selectedDate} at ${selectedTime}` : 'Not selected'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Duration:</span>
-                        <span className="font-semibold">{duration} hours</span>
-                      </div>
-                      <div className="border-t border-gray-300 pt-2 mt-2 flex justify-between">
-                        <span className="font-bold text-gray-900">Total Amount:</span>
-                        <span className="text-2xl font-bold text-green-600">
-                          {showContactSales ? 'Contact Sales' : `RWF ${amount.toLocaleString()}`}
-                        </span>
+                    <div className="mt-8 rounded-3xl border border-gray-200 bg-gray-50 p-6">
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <p className="text-sm text-gray-500">Estimated total</p>
+                          <p className="text-3xl font-bold text-green-700">RWF {amount.toLocaleString()}</p>
+                        </div>
+                        <button
+                          onClick={handleBookingSubmit}
+                          className="rounded-2xl bg-green-600 px-6 py-4 font-semibold text-white shadow-lg transition hover:bg-green-700"
+                        >
+                          {showContactSales ? 'Contact Sales' : 'Continue to Payment'}
+                        </button>
                       </div>
                     </div>
-                  </div>
+                  </>
+                )}
 
-                  {/* Proceed Button */}
-                  <button
-                    disabled={!selectedDate || !selectedTime || showContactSales}
-                    onClick={() => handleBookingComplete(formData)}
-                    className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-bold py-4 px-6 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl disabled:cursor-not-allowed"
-                  >
-                    Pay with PesaPal
-                  </button>
-                </>
-              )}
-
-              {/* VERIFICATION STEP: Payment Verification */}
-              {currentStep === 'verification' && (
-                <PaymentVerification
-                  orderTrackingId={orderTrackingId}
-                  merchantReference={merchantReference}
-                  amount={amount}
-                  bookingData={{
-                    date: selectedDate,
-                    time: selectedTime,
-                    duration,
-                    pitch: pitchType,
-                    name: formData.name,
-                    phone: formData.phone,
-                    email: formData.email,
-                  }}
-                  onSuccess={handlePaymentVerified}
-                  onRetry={handleRetryPayment}
-                  savingBooking={savingBooking}
-                />
-              )}
-
-              {/* CONFIRMATION STEP: Booking Confirmed */}
-              {currentStep === 'confirmation' && (
-                <div className="text-center space-y-6">
-                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-                    <CheckCircle className="w-8 h-8 text-green-600" />
-                  </div>
+                {currentStep === 'payment' && bookingSelection && (
                   <div>
-                    <h2 className="text-3xl font-bold text-gray-900 mb-2">Booking Confirmed!</h2>
-                    <p className="text-gray-600">Your payment has been successfully processed.</p>
+                    <div className="mb-6">
+                      <h2 className="text-3xl font-bold text-gray-900 mb-2">Confirm Payment</h2>
+                      <p className="text-gray-600">Add the booking contact we should use, then continue to secure PesaPal checkout.</p>
+                    </div>
+                    <PesaPalPayment
+                      bookingData={bookingSelection}
+                      amount={amount}
+                      onBack={() => setCurrentStep('booking')}
+                      onPaymentInitiated={handlePaymentInitiated}
+                    />
                   </div>
+                )}
 
-                  {/* Booking Details */}
-                  <div className="bg-gray-50 rounded-xl p-6 border border-gray-200 max-w-md mx-auto">
-                    <h3 className="font-bold text-gray-900 mb-4">Booking Details</h3>
-                    <div className="space-y-2 text-sm text-left">
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Reference:</span>
-                        <span className="font-mono">{merchantReference}</span>
+                {currentStep === 'verification' && paymentSession && bookingData && (
+                  <div>
+                    <div className="mb-6">
+                      <h2 className="text-3xl font-bold text-gray-900 mb-2">Verify Payment</h2>
+                      <p className="text-gray-600">After completing your PesaPal payment, return here and let us confirm your booking automatically.</p>
+                    </div>
+                    <PaymentVerification
+                      orderTrackingId={paymentSession.orderTrackingId}
+                      merchantReference={paymentSession.merchantReference}
+                      amount={amount}
+                      bookingData={bookingData}
+                      onSuccess={handlePaymentVerified}
+                      onRetry={() => setCurrentStep('payment')}
+                      savingBooking={savingBooking}
+                    />
+                  </div>
+                )}
+
+                {currentStep === 'confirmation' && bookingData && paymentSession && (
+                  <div className="space-y-8">
+                    <div className="text-center">
+                      <h2 className="text-4xl font-bold text-gray-900">Booking Confirmed</h2>
+                      <p className="mx-auto mt-3 max-w-2xl text-gray-600">
+                        Your booking is confirmed and your payment has been verified. Please save your reference number.
+                      </p>
+                    </div>
+
+                    <div className="grid gap-6 lg:grid-cols-2">
+                      <div className="rounded-3xl border border-green-200 bg-green-50 p-6">
+                        <h3 className="text-lg font-semibold text-green-900 mb-4">Booking Details</h3>
+                        <div className="space-y-3 text-sm text-gray-700">
+                          <div className="flex justify-between">
+                            <span>Pitch</span>
+                            <span className="font-semibold">{bookingData.pitch}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Date</span>
+                            <span className="font-semibold">{bookingData.date}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Time</span>
+                            <span className="font-semibold">{bookingData.time}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Duration</span>
+                            <span className="font-semibold">{bookingData.duration} hours</span>
+                          </div>
+                          <div className="flex justify-between pt-3 border-t border-green-200">
+                            <span className="font-semibold">Paid</span>
+                            <span className="font-semibold text-green-700">RWF {amount.toLocaleString()}</span>
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Pitch:</span>
-                        <span className="font-semibold">{pitchType}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Date & Time:</span>
-                        <span className="font-semibold">{selectedDate} at {selectedTime}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Duration:</span>
-                        <span className="font-semibold">{duration} hours</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Amount Paid:</span>
-                        <span className="font-bold text-green-600">RWF {amount.toLocaleString()}</span>
+
+                      <div className="rounded-3xl border border-gray-200 bg-white p-6">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Payment Reference</h3>
+                        <div className="space-y-3 text-sm text-gray-700">
+                          <div>
+                            <p className="text-gray-500">Merchant reference</p>
+                            <p className="font-mono break-all">{paymentSession.merchantReference}</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-500">PesaPal tracking ID</p>
+                            <p className="font-mono break-all">{paymentSession.orderTrackingId}</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-500">Customer</p>
+                            <p>{bookingData.name}</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-500">Phone</p>
+                            <p>{bookingData.phone}</p>
+                          </div>
+                        </div>
                       </div>
                     </div>
+
+                    {saveError && (
+                      <div className="rounded-3xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                        {saveError}
+                      </div>
+                    )}
+
+                    <div className="flex flex-col gap-4 sm:flex-row">
+                      <button
+                        onClick={handleRestart}
+                        className="rounded-2xl border border-green-600 bg-white px-6 py-4 font-semibold text-green-700 transition hover:bg-green-50"
+                      >
+                        Book Another Slot
+                      </button>
+                      <a
+                        href={`mailto:support@skzone.rw?subject=Booking%20Reference%20${paymentSession.merchantReference}`}
+                        className="rounded-2xl bg-green-600 px-6 py-4 text-center font-semibold text-white transition hover:bg-green-700"
+                      >
+                        Contact Support
+                      </a>
+                    </div>
                   </div>
+                )}
+              </div>
 
-                  <button
-                    onClick={() => window.location.reload()}
-                    className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl"
-                  >
-                    Book Another Pitch
-                  </button>
+              <div className="hidden lg:block bg-green-600 p-8 text-white">
+                <div className="space-y-6">
+                  <div>
+                    <p className="text-sm uppercase tracking-[0.2em] text-green-200">Soka Zone Booking</p>
+                    <h3 className="mt-3 text-2xl font-bold">Easy booking. Trusted payment.</h3>
+                  </div>
+                  <div className="space-y-4 text-sm leading-7">
+                    <p>Continue to the hosted PesaPal payment page and complete the booking with card payment.</p>
+                    <p>Your booking contact is collected during the payment step, not on the slot selection screen.</p>
+                    <p>After payment, return to this page to verify and confirm your booking.</p>
+                  </div>
+                  <div className="rounded-3xl border border-white/20 bg-white/10 p-5">
+                    <p className="text-sm font-semibold uppercase tracking-[0.2em] text-green-200">Booking steps</p>
+                    <ol className="mt-4 space-y-3 text-sm text-white/90">
+                      <li>1. Select your slot</li>
+                      <li>2. Review payment contact</li>
+                      <li>3. Continue to PesaPal</li>
+                      <li>4. Confirm your booking</li>
+                    </ol>
+                  </div>
                 </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Why Book Section */}
-      <section className="py-16 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {/* Book Early */}
-            <div className="text-center">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-green-600 text-2xl">⏰</span>
               </div>
-              <h3 className="font-bold text-gray-900 mb-2">Book Early</h3>
-              <p className="text-gray-600 text-sm">After-work hours, evenings, and weekends fill fast. Don't wait.</p>
-            </div>
-
-            {/* Instant Confirmation */}
-            <div className="text-center">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-blue-600 text-2xl">✓</span>
-              </div>
-              <h3 className="font-bold text-gray-900 mb-2">Instant Confirmation</h3>
-              <p className="text-gray-600 text-sm">Get your booking code immediately after payment.</p>
-            </div>
-
-            {/* Secure Payment */}
-            <div className="text-center">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-green-600 text-2xl">🔒</span>
-              </div>
-              <h3 className="font-bold text-gray-900 mb-2">Secure Payment</h3>
-              <p className="text-gray-600 text-sm">Safe and secure payment via PesaPal, M-Pesa, or Visa.</p>
             </div>
           </div>
         </div>

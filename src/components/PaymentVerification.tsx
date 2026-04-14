@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { CheckCircle, XCircle, Loader, RefreshCw, AlertCircle } from 'lucide-react';
 import { getPesaPalPaymentStatus, PesaPalTransactionStatus } from '../utils/pesapal';
 

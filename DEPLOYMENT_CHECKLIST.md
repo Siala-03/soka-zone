@@ -1,116 +1,62 @@
 # Deployment Readiness Checklist
 
-## 🚨 CRITICAL - Must Complete Before Production
+## Critical Production Steps
 
-### 1. Environment Variables Setup
-- [ ] Get production PesaPal credentials from [PesaPal Dashboard](https://www.pesapal.com/developers)
-- [ ] Set up production Firebase project and get credentials
-- [ ] Update `.env` file with real production values
-- [ ] Ensure `.env` is NOT committed to git (check `.gitignore`)
+### 1. Vercel Environment Variables
+- [ ] Add `VITE_PESAPAL_ENV=production`
+- [ ] Add `PESAPAL_ENV=production`
+- [ ] Add `PESAPAL_CONSUMER_KEY` with your live PesaPal merchant key
+- [ ] Add `PESAPAL_CONSUMER_SECRET` with your live PesaPal merchant secret
+- [ ] Add `PUBLIC_SITE_URL=https://sokazone.rw`
+- [ ] Add `PESAPAL_CALLBACK_URL=https://sokazone.rw/payment/callback`
+- [ ] Add `PESAPAL_NOTIFICATION_URL=https://sokazone.rw/api/pesapal/notify`
+- [ ] Add `PESAPAL_NOTIFICATION_ID` from the registered Pesapal live IPN URL
+- [ ] Add the `VITE_FIREBASE_*` production values used by the client app
+- [ ] Leave `VITE_API_URL` empty on Vercel unless the frontend calls a different API origin
 
 ### 2. PesaPal Dashboard Configuration
-- [ ] Set production callback URLs in PesaPal dashboard:
-  - **Return URL**: `https://yourdomain.com/payment/success`
-  - **Notification URL**: `https://your-api.com/api/pesapal/notify`
-- [ ] Enable production mode in PesaPal account
-- [ ] Test production credentials with small amounts
+- [ ] Switch the merchant account to live mode with PesaPal
+- [ ] Register `https://sokazone.rw/api/pesapal/notify` as the live IPN URL and copy the generated `notification_id`
+- [ ] Store that generated value as `PESAPAL_NOTIFICATION_ID` in Vercel
+- [ ] Ensure the app callback URL remains `https://sokazone.rw/payment/callback` in your request flow
+- [ ] Confirm the live key and secret match the values entered in Vercel
 
 ### 3. Firebase Setup
-- [ ] Create production Firebase project
-- [ ] Enable Firestore database
-- [ ] Set up security rules for bookings collection
-- [ ] Configure Firebase authentication (if needed)
+- [ ] Confirm the production Firebase project is the one referenced by the `VITE_FIREBASE_*` values
+- [ ] Ensure Firestore is enabled and the `bookings` collection can be written from the deployed app
+- [ ] Verify Firestore security rules allow the expected booking flow
 
-### 4. Hosting & Domain
-- [ ] Deploy to HTTPS-enabled hosting (Vercel, Netlify, etc.)
-- [ ] Update PesaPal callback URLs with actual domain
-- [ ] Test payment flow end-to-end in production
+### 4. Vercel Deployment Checks
+- [ ] Redeploy after saving the environment variables
+- [ ] Confirm `GET https://sokazone.rw/api/pesapal/notify` returns the health response
+- [ ] Confirm the Vercel deployment logs show the API routes building successfully
+- [ ] Verify the app is using the custom domain, not only the preview `.vercel.app` URL
 
-### 5. Backend API (Recommended)
-- [ ] Implement secure notification webhook endpoint
-- [ ] Add payment signature verification
-- [ ] Set up proper error logging
-- [ ] Implement booking management API
+### 5. End-to-End Go-Live Test
+- [ ] Start one real low-value MTN MoMo payment from the live site
+- [ ] Confirm checkout opens the PesaPal live page
+- [ ] Confirm the MTN prompt reaches the phone and payment completes
+- [ ] Confirm payment status changes to `COMPLETED`
+- [ ] Confirm the booking is saved in Firestore
+- [ ] Confirm the webhook request appears in Vercel logs
 
-## ✅ What Currently Works
+## What Is Already Implemented
 
-### Frontend Features
-- [x] Payment method selection (MTN Momo, M-Pesa, Card, Bank)
-- [x] Booking calendar and time selection
-- [x] Multi-step booking flow
-- [x] Payment initiation and redirect
-- [x] Payment confirmation handling
-- [x] Firebase booking storage
-- [x] RWF pricing (35,000 RWF/hour)
+- [x] Frontend payment selection for MTN MoMo, Airtel Money, card, and bank transfer
+- [x] Rwanda phone normalization and MTN MoMo method mapping via `MOMO_INT`
+- [x] Server-side PesaPal submit and status routes for production-safe key handling
+- [x] Webhook signature verification in the notify API route
+- [x] Firebase booking save after verified payment
 
-### Code Quality
-- [x] TypeScript compilation
-- [x] Build process works
-- [x] No exposed credentials in codebase
-- [x] Proper error handling
+## Notes For Vercel
 
-## ⚠️ Known Limitations
+- Vercel automatically serves the files in `api/` as serverless functions, so no extra routing config is required for the PesaPal endpoints.
+- Secrets belong only in the Vercel project environment settings, not in `.env.example` and not in any `VITE_` variables.
+- If you later add a separate backend domain, set `VITE_API_URL` to that origin; otherwise keep it blank in production.
 
-1. **No Proper Routing**: Payment callbacks handled via URL params in BookPage
-2. **No Backend Validation**: All payment verification done client-side
-3. **No Webhook Security**: Notification URL points to localhost
-4. **No Error Recovery**: Limited handling of failed payments
-5. **No Admin Panel**: No way to manage bookings
+## Post-Launch Monitoring
 
-## 🧪 Testing Checklist
-
-### Pre-Deployment Testing
-- [ ] Test all payment methods in sandbox
-- [ ] Test booking flow end-to-end
-- [ ] Test error scenarios (network issues, invalid cards)
-- [ ] Test mobile responsiveness
-- [ ] Test with real Rwandan phone numbers
-
-### Post-Deployment Testing
-- [ ] Test production payment flow
-- [ ] Verify booking data saves to Firebase
-- [ ] Test callback handling
-- [ ] Monitor error logs
-- [ ] Test with real customers
-
-## 🚀 Deployment Steps
-
-1. **Prepare Environment**:
-   ```bash
-   # Update .env with production values
-   npm run build
-   ```
-
-2. **Deploy Frontend**:
-   - Use Vercel, Netlify, or similar
-   - Ensure HTTPS is enabled
-   - Set environment variables in hosting platform
-
-3. **Update PesaPal Dashboard**:
-   - Change callback URLs to production domain
-   - Switch to production credentials
-
-4. **Test Production**:
-   - Use small test amounts
-   - Test all payment methods
-   - Verify booking creation
-
-## 💡 Recommendations for Production
-
-1. **Add Backend API** for secure payment processing
-2. **Implement Proper Routing** for payment callbacks
-3. **Add Payment Webhooks** for real-time status updates
-4. **Set up Monitoring** (error tracking, analytics)
-5. **Add Admin Dashboard** for booking management
-6. **Implement Refund Handling**
-7. **Add Email Notifications** for bookings
-
-## 🔒 Security Notes
-
-- Never commit `.env` files to git
-- Use environment variables for all secrets
-- Implement proper CORS policies
-- Validate all user inputs server-side
-- Use HTTPS everywhere
-- Regularly rotate API keys</content>
-<parameter name="filePath">c:\Users\PC\Desktop\Projects\skzone\DEPLOYMENT_CHECKLIST.md
+- [ ] Watch Vercel function logs during the first live payments
+- [ ] Watch Firestore for duplicate or failed booking writes
+- [ ] Monitor callback and notify URLs after each deploy
+- [ ] Rotate PesaPal credentials if they were ever exposed during testing

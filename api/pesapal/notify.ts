@@ -14,7 +14,14 @@ function verifySignature(body: any, secret: string): boolean {
   hmac.update(payload);
   const expected = hmac.digest('base64');
 
-  return expected === body.pesapal_signature;
+  const expectedBuffer = Buffer.from(expected);
+  const receivedBuffer = Buffer.from(body.pesapal_signature);
+
+  if (expectedBuffer.length !== receivedBuffer.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(expectedBuffer, receivedBuffer);
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
