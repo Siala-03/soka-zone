@@ -1,16 +1,16 @@
 // Pitch pricing configuration (in RWF)
-// Test pricing: 2h = 2,000 RWF (1,000 RWF per hour), minimum payment 300 RWF carried from temporary behavior.
+// Current live pricing: 70,000 RWF for 2 hours.
 export const PITCH_PRICING = {
   Standard: {
-    base: 1000,
+    base: 35000,
     description: '5-a-side pitch',
   },
   Premium: {
-    base: 1000,
+    base: 35000,
     description: 'Full-size pitch',
   },
   Championship: {
-    base: 1000,
+    base: 35000,
     description: 'Professional-grade pitch',
   },
 } as const;
@@ -20,11 +20,10 @@ export type PitchType = keyof typeof PITCH_PRICING;
 export function calculateBookingPrice(pitchType: PitchType, duration: number): number {
   const pricing = PITCH_PRICING[pitchType];
   if (!pricing || duration <= 0) {
-    return 300; // Minimum payment fallback
+    return 35000;
   }
 
-  const raw = pricing.base * duration;
-  return Math.max(raw, 300); // enforce min 300 RWF
+  return pricing.base * duration;
 }
 
 export function getPricePerHour(pitchType: PitchType): number {

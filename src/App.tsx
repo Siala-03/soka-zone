@@ -6,6 +6,7 @@ import { PitchesPage } from './pages/PitchesPage';
 import { BookPage } from './pages/BookPage';
 import { OrganizationsPage } from './pages/OrganizationsPage';
 import { ContactPage } from './pages/ContactPage';
+import { AdminPage } from './pages/AdminPage';
 export function App() {
   const [currentPage, setCurrentPage] = useState<PageId>('home');
   const renderPage = () => {
@@ -20,6 +21,8 @@ export function App() {
         return <OrganizationsPage onNavigate={setCurrentPage} />;
       case 'contact':
         return <ContactPage />;
+      case 'admin':
+        return <AdminPage onBackHome={() => setCurrentPage('home')} />;
       default:
         return <HomePage onNavigate={setCurrentPage} />;
     }

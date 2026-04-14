@@ -155,6 +155,13 @@ export function Footer({ onNavigate }: FooterProps) {
             <p className="text-gray-400 mt-1">Developed by Siala Solutions</p>
           </div>
           <div className="flex gap-6">
+            <a
+              href="#"
+              onClick={(e) => handleNavigate(e, 'admin')}
+              className="hover:text-white transition-colors"
+            >
+              Admin
+            </a>
             <a href="#" className="hover:text-white transition-colors">
               Privacy Policy
             </a>

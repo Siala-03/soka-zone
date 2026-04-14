@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Menu, X } from 'lucide-react';
-export type PageId = 'home' | 'pitches' | 'book' | 'organizations' | 'contact';
+export type PageId = 'home' | 'pitches' | 'book' | 'organizations' | 'contact' | 'admin';
 interface NavbarProps {
   currentPage: PageId;
   onNavigate: (page: PageId) => void;
