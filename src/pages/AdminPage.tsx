@@ -3,7 +3,7 @@ import { User, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'f
 import { addDoc, collection, deleteDoc, doc, getDocs, updateDoc } from 'firebase/firestore';
 import { Lock, LogOut, Plus, Trash2, XCircle } from 'lucide-react';
 import { auth, db } from '../firebase';
-import { calculateBookingPrice } from '../utils/pricing';
+import { SALES_PHONE, getBookingPriceQuote } from '../utils/pricing';
 
 type BookingRecord = {
   id: string;
@@ -82,6 +82,11 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
     hours: 2,
     name: '',
     paymentReference: '',
+  });
+
+  const bookingPriceQuote = getBookingPriceQuote('Standard', formState.hours, {
+    date: formState.date,
+    startTime: formState.startTime,
   });
 
   useEffect(() => {
@@ -173,7 +178,7 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
     setActionError(null);
 
     try {
-      await addDoc(collection(db, 'bookings'), {
+      const bookingPayload = {
         date: formState.date,
         time: formState.startTime,
         endTime: formState.endTime,
@@ -183,10 +188,12 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
         phone: '',
         email: '',
         paymentReference: formState.paymentReference.trim() || '',
-        amount: calculateBookingPrice('Standard', bookingHours),
         status: 'confirmed',
         updatedAt: new Date().toISOString(),
-      });
+        ...(bookingPriceQuote.amount !== null ? { amount: bookingPriceQuote.amount } : {}),
+      };
+
+      await addDoc(collection(db, 'bookings'), bookingPayload);
 
       setFormState({
         date: '',
@@ -424,8 +431,11 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
                 <div>
                   <label className="mb-2 block text-sm font-semibold text-gray-900">Amount</label>
                   <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 font-semibold text-green-700">
-                    RWF {calculateBookingPrice('Standard', formState.hours).toLocaleString()}
+                    {bookingPriceQuote.amount !== null ? `RWF ${bookingPriceQuote.amount.toLocaleString()}` : 'Contact sales'}
                   </div>
+                  {bookingPriceQuote.amount === null && formState.hours > 2 && (
+                    <p className="mt-2 text-xs text-blue-700">Bookings longer than 2 hours require sales pricing on {SALES_PHONE}.</p>
+                  )}
                 </div>
               </div>
 
