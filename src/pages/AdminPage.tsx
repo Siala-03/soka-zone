@@ -9,6 +9,7 @@ type BookingRecord = {
   id: string;
   date: string;
   time: string;
+  endTime?: string;
   duration: number;
   pitch: string;
   name: string;
@@ -29,7 +30,39 @@ const timeSlots = [
   '16:00', '17:00', '18:00', '19:00', '20:00', '21:00',
 ];
 
+const endTimeSlots = [
+  '07:00', '08:00', '09:00', '10:00', '11:00',
+  '12:00', '13:00', '14:00', '15:00', '16:00',
+  '17:00', '18:00', '19:00', '20:00', '21:00', '22:00',
+];
+
+const hourOptions = Array.from({ length: 12 }, (_, index) => index + 1);
+
 const ADMIN_USERNAME = 'admin';
+
+function timeToHour(time: string): number {
+  return Number.parseInt(time.split(':')[0], 10);
+}
+
+function hourToTime(hour: number): string {
+  return `${hour.toString().padStart(2, '0')}:00`;
+}
+
+function calculateEndTime(startTime: string, hours: number): string {
+  if (!startTime || hours <= 0) {
+    return '';
+  }
+
+  return hourToTime(timeToHour(startTime) + hours);
+}
+
+function calculateHoursBetween(startTime: string, endTime: string): number {
+  if (!startTime || !endTime) {
+    return 0;
+  }
+
+  return timeToHour(endTime) - timeToHour(startTime);
+}
 
 export function AdminPage({ onBackHome }: AdminPageProps) {
   const [loginIdentifier, setLoginIdentifier] = useState('');
@@ -44,8 +77,9 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
   const [saving, setSaving] = useState(false);
   const [formState, setFormState] = useState({
     date: '',
-    time: '',
-    duration: 2,
+    startTime: '',
+    endTime: '',
+    hours: 2,
     name: '',
     paymentReference: '',
   });
@@ -123,8 +157,15 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
   const handleCreateBooking = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!formState.date || !formState.time) {
-      setActionError('Date and time are required.');
+    if (!formState.date || !formState.startTime || !formState.endTime) {
+      setActionError('Date, start time, and end time are required.');
+      return;
+    }
+
+    const bookingHours = calculateHoursBetween(formState.startTime, formState.endTime);
+
+    if (bookingHours <= 0 || bookingHours > 12) {
+      setActionError('Booking hours must be between 1 and 12.');
       return;
     }
 
@@ -134,22 +175,24 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
     try {
       await addDoc(collection(db, 'bookings'), {
         date: formState.date,
-        time: formState.time,
-        duration: formState.duration,
+        time: formState.startTime,
+        endTime: formState.endTime,
+        duration: bookingHours,
         pitch: 'Standard',
         name: formState.name.trim() || 'Confirmed booking',
         phone: '',
         email: '',
         paymentReference: formState.paymentReference.trim() || '',
-        amount: calculateBookingPrice('Standard', formState.duration),
+        amount: calculateBookingPrice('Standard', bookingHours),
         status: 'confirmed',
         updatedAt: new Date().toISOString(),
       });
 
       setFormState({
         date: '',
-        time: '',
-        duration: 2,
+        startTime: '',
+        endTime: '',
+        hours: 2,
         name: '',
         paymentReference: '',
       });
@@ -300,13 +343,23 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
                   />
                 </div>
                 <div>
-                  <label className="mb-2 block text-sm font-semibold text-gray-900">Time</label>
+                  <label className="mb-2 block text-sm font-semibold text-gray-900">Start Time</label>
                   <select
-                    value={formState.time}
-                    onChange={(event) => setFormState((current) => ({ ...current, time: event.target.value }))}
+                    value={formState.startTime}
+                    onChange={(event) => {
+                      const nextStartTime = event.target.value;
+                      const nextEndTime = calculateEndTime(nextStartTime, formState.hours);
+                      const isValidEndTime = endTimeSlots.includes(nextEndTime);
+
+                      setFormState((current) => ({
+                        ...current,
+                        startTime: nextStartTime,
+                        endTime: isValidEndTime ? nextEndTime : '',
+                      }));
+                    }}
                     className="w-full rounded-2xl border border-gray-300 px-4 py-3 focus:border-green-600 focus:outline-none"
                   >
-                    <option value="">Select time</option>
+                    <option value="">Select start time</option>
                     {timeSlots.map((timeSlot) => (
                       <option key={timeSlot} value={timeSlot}>{timeSlot}</option>
                     ))}
@@ -314,23 +367,64 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
                 </div>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-4 sm:grid-cols-3">
                 <div>
-                  <label className="mb-2 block text-sm font-semibold text-gray-900">Duration</label>
+                  <label className="mb-2 block text-sm font-semibold text-gray-900">End Time</label>
                   <select
-                    value={formState.duration}
-                    onChange={(event) => setFormState((current) => ({ ...current, duration: Number(event.target.value) }))}
+                    value={formState.endTime}
+                    onChange={(event) => {
+                      const nextEndTime = event.target.value;
+                      const nextHours = calculateHoursBetween(formState.startTime, nextEndTime);
+
+                      setFormState((current) => ({
+                        ...current,
+                        endTime: nextEndTime,
+                        hours: nextHours > 0 && nextHours <= 12 ? nextHours : current.hours,
+                      }));
+                    }}
+                    className="w-full rounded-2xl border border-gray-300 px-4 py-3 focus:border-green-600 focus:outline-none"
+                    disabled={!formState.startTime}
+                  >
+                    <option value="">Select end time</option>
+                    {endTimeSlots
+                      .filter((timeSlot) => {
+                        if (!formState.startTime) {
+                          return true;
+                        }
+
+                        const hoursBetween = calculateHoursBetween(formState.startTime, timeSlot);
+                        return hoursBetween >= 1 && hoursBetween <= 12;
+                      })
+                      .map((timeSlot) => (
+                        <option key={timeSlot} value={timeSlot}>{timeSlot}</option>
+                      ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-gray-900">Hours</label>
+                  <select
+                    value={formState.hours}
+                    onChange={(event) => {
+                      const nextHours = Number(event.target.value);
+                      const nextEndTime = calculateEndTime(formState.startTime, nextHours);
+
+                      setFormState((current) => ({
+                        ...current,
+                        hours: nextHours,
+                        endTime: endTimeSlots.includes(nextEndTime) ? nextEndTime : current.endTime,
+                      }));
+                    }}
                     className="w-full rounded-2xl border border-gray-300 px-4 py-3 focus:border-green-600 focus:outline-none"
                   >
-                    <option value={2}>2 hours</option>
-                    <option value={3}>3 hours</option>
-                    <option value={4}>4 hours</option>
+                    {hourOptions.map((hourOption) => (
+                      <option key={hourOption} value={hourOption}>{hourOption} hour{hourOption > 1 ? 's' : ''}</option>
+                    ))}
                   </select>
                 </div>
                 <div>
                   <label className="mb-2 block text-sm font-semibold text-gray-900">Amount</label>
                   <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 font-semibold text-green-700">
-                    RWF {calculateBookingPrice('Standard', formState.duration).toLocaleString()}
+                    RWF {calculateBookingPrice('Standard', formState.hours).toLocaleString()}
                   </div>
                 </div>
               </div>
@@ -387,7 +481,7 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                       <div>
                         <div className="flex items-center gap-3">
-                          <p className="text-lg font-semibold text-gray-900">{booking.date} at {booking.time}</p>
+                          <p className="text-lg font-semibold text-gray-900">{booking.date} from {booking.time} to {booking.endTime || calculateEndTime(booking.time, booking.duration)}</p>
                           <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
                             booking.status === 'confirmed'
                               ? 'bg-green-100 text-green-700'
