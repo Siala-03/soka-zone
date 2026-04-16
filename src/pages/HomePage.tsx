@@ -1,7 +1,7 @@
 import { PageId } from '../components/Navbar';
 
 // Local assets
-const heroImage = "/assets/IMG_5478.jpg";
+const heroImage = "/assets/field1.jpeg";
 const pitchImage = "/assets/IMG_5479.jpg";
 const actionImage = "/assets/IMG_5480.jpg";
 const nightImage = "/assets/IMG_5481.jpg";
