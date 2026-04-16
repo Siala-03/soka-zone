@@ -152,6 +152,10 @@ html {
   scroll-behavior: smooth;
 }
 
+body {
+  font-family: "Tw Cen MT", "TwCen MT", "Century Gothic", sans-serif;
+}
+
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
