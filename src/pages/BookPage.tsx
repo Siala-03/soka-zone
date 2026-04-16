@@ -6,7 +6,7 @@ import {
   getBookingPriceQuote,
 } from '../utils/pricing';
 
-const heroImage = '/assets/field2.jpeg';
+const heroImage = '/assets/IMG_5479.jpg';
 const PESAPAL_PAYMENT_LINK = 'https://store.pesapal.com/sokazonepayment';
 const bookingRates = [
   { label: 'Mon-Thu 6am-4pm', amount: '50,000' },
