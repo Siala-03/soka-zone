@@ -6,20 +6,20 @@ const pitchImage = "/assets/IMG_5479.jpg";
 const actionImage = "/assets/IMG_5480.jpg";
 const nightImage = "/assets/IMG_5481.jpg";
 const teamImage = "/assets/IMG_5482.jpg";
-const playersImage = "/assets/IMG_5487.jpg";
+const playersImage = "/assets/small_pitch4.webp";
 const galleryImages = [
   "/assets/IMG_5478.jpg",
   "/assets/IMG_5480.jpg",
-  "/assets/IMG_5482.jpg",
+  "/assets/IMG_5487.jpg",
   "/assets/IMG_5479.jpg",
-  "/assets/IMG_5489.jpg",
+  "/assets/IMG_5494.jpg",
   "/assets/IMG_5481.jpg",
 ];
 
 const eventImages = [
-  "/assets/IMG_5494.jpg",
+  "/assets/small_tournament.webp",
   "/assets/IMG_5480.jpg",
-  "/assets/IMG_5497.jpg",
+  "/assets/small_tournament2.webp",
 ];
 
 interface HomePageProps {

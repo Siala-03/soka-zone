@@ -5,9 +5,9 @@ const heroImage = "/assets/IMG_5478.jpg";
 const turfImage = "/assets/IMG_5479.jpg";
 const actionImage = "/assets/IMG_5480.jpg";
 const nightImage = "/assets/IMG_5481.jpg";
-const matchImage = "/assets/IMG_5482.jpg";
-const lightingImage = "/assets/IMG_5489.jpg";
-const facilitiesImage = "/assets/IMG_5487.jpg";
+const matchImage = "/assets/IMG_5487.jpg";
+const lightingImage = "/assets/IMG_5481.jpg";
+const facilitiesImage = "/assets/IMG_5489.jpg";
 
 interface PitchesPageProps {
   onNavigate: (page: PageId) => void;

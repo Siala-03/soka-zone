@@ -40,7 +40,7 @@ export function ContactPage() {
       <PageHero
         title="Let's Set Up Your Game Properly"
         subtitle="For bookings, enquiries, or organized group sessions, reach out and we'll handle it professionally."
-        backgroundImage="/assets/IMG_5487.jpg"
+        backgroundImage="/assets/IMG_5489.jpg"
         overlayColor="blue">
         
         <a

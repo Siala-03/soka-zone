@@ -3,12 +3,12 @@ import { PageId } from '../components/Navbar';
 // Local assets
 const heroImage = "/assets/IMG_5478.jpg";
 const universityImage = "/assets/IMG_5479.jpg";
-const corporateImage = "/assets/IMG_5489.jpg";
-const internationalImage = "/assets/IMG_5494.jpg";
-const schedulingImage = "/assets/IMG_5487.jpg";
-const managementImage = "/assets/IMG_5497.jpg";
-const paymentImage = "/assets/IMG_548r1.jpg";
-const communityImage = "/assets/IMG_5480.jpg";
+const corporateImage = "/assets/small_players2.webp";
+const internationalImage = "/assets/small_partners.webp";
+const schedulingImage = "/assets/IMG_5489.jpg";
+const managementImage = "/assets/IMG_5482.jpg";
+const paymentImage = "/assets/IMG_5494.jpg";
+const communityImage = "/assets/small_fans1.webp";
 
 interface OrganizationsPageProps {
   onNavigate: (page: PageId) => void;
