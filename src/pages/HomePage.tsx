@@ -8,17 +8,17 @@ const nightImage = "/assets/IMG_5481.jpg";
 const teamImage = "/assets/IMG_5482.jpg";
 const playersImage = "/assets/small_pitch4.webp";
 const galleryImages = [
-  "/assets/IMG_5478.jpg",
-  "/assets/IMG_5480.jpg",
   "/assets/IMG_5487.jpg",
-  "/assets/IMG_5479.jpg",
+  "/assets/IMG_5489.jpg",
   "/assets/IMG_5494.jpg",
-  "/assets/IMG_5481.jpg",
+  "/assets/IMG_5497.jpg",
+  "/assets/IMG_548r1.jpg",
+  "/assets/small_pitch1.webp",
 ];
 
 const eventImages = [
   "/assets/small_tournament.webp",
-  "/assets/IMG_5480.jpg",
+  "/assets/field3.jpeg",
   "/assets/small_tournament2.webp",
 ];
 

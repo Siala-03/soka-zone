@@ -1,13 +1,13 @@
 import { PageId } from '../components/Navbar';
 
 // Local assets
-const heroImage = "/assets/IMG_5478.jpg";
-const turfImage = "/assets/IMG_5479.jpg";
-const actionImage = "/assets/IMG_5480.jpg";
-const nightImage = "/assets/IMG_5481.jpg";
-const matchImage = "/assets/IMG_5487.jpg";
-const lightingImage = "/assets/IMG_5481.jpg";
-const facilitiesImage = "/assets/IMG_5489.jpg";
+const heroImage = "/assets/pitch1.webp";
+const turfImage = "/assets/pitch2.webp";
+const actionImage = "/assets/pitch3.webp";
+const nightImage = "/assets/night.webp";
+const matchImage = "/assets/players4.webp";
+const lightingImage = "/assets/field3.jpeg";
+const facilitiesImage = "/assets/facility.webp";
 
 interface PitchesPageProps {
   onNavigate: (page: PageId) => void;
