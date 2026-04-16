@@ -8,7 +8,7 @@ import { OrganizationsPage } from './pages/OrganizationsPage';
 import { ContactPage } from './pages/ContactPage';
 import { AdminPage } from './pages/AdminPage';
 
-const WHATSAPP_URL = 'https://wa.me/250789619991?text=Hello%20Soka%20Zone%2C%20I%20need%20help%20with%20booking.';
+const WHATSAPP_URL = 'https://wa.me/250792887614?text=Hello%20Soka%20Zone%2C%20I%20need%20help%20with%20booking.';
 
 function WhatsAppIcon() {
   return (

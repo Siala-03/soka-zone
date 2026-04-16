@@ -1,7 +1,7 @@
 import { PageHero } from '../components/PageHero';
 import { Mail, Phone, MapPin, Clock } from 'lucide-react';
 
-const WHATSAPP_URL = 'https://wa.me/250789619991?text=Hello%20Soka%20Zone%2C%20I%20need%20help%20with%20booking.';
+const WHATSAPP_URL = 'https://wa.me/250792887614?text=Hello%20Soka%20Zone%2C%20I%20need%20help%20with%20booking.';
 
 function WhatsAppIcon() {
   return (
@@ -26,16 +26,16 @@ export function ContactPage() {
     icon: <Phone className="w-6 h-6 text-white" />,
     iconBg: 'bg-blue-500',
     title: 'Phone',
-    content: '+250 792 887 614',
+    content: '+250 789 619 991',
     isLink: true,
-    href: 'tel:+250792887614',
+    href: 'tel:+250789619991',
     linkColor: 'text-green-600'
   },
   {
     icon: <WhatsAppIcon />,
     iconBg: 'bg-[#25D366]',
     title: 'WhatsApp',
-    content: '+250 789 619 991',
+    content: '+250 792 887 614',
     isLink: true,
     href: WHATSAPP_URL,
     linkColor: 'text-green-600'
@@ -70,7 +70,7 @@ export function ContactPage() {
           Send us an Email
         </a>
         <a
-          href="tel:+250792887614"
+          href="tel:+250789619991"
           className="bg-transparent border-2 border-white text-white hover:bg-white hover:text-blue-900 px-6 py-2 rounded-md font-bold transition-colors">
           
           Call Us Now
