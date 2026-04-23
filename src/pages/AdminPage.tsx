@@ -14,6 +14,7 @@ type BookingRecord = {
   duration: number;
   pitch: string;
   name: string;
+  teamName?: string;
   phone: string;
   email: string;
   paymentReference?: string;
@@ -34,6 +35,7 @@ type BookingEditState = {
   startTime: string;
   endTime: string;
   name: string;
+  teamName: string;
   paymentReference: string;
   status: 'confirmed' | 'pending' | 'cancelled';
 };
@@ -57,6 +59,10 @@ const endTimeSlots = [
 const hourOptions = Array.from({ length: 12 }, (_, index) => index + 1);
 
 const ADMIN_USERNAME = 'admin';
+
+function getConfiguredAdminEmail(): string {
+  return (import.meta.env.VITE_ADMIN_EMAIL || '').toString().trim().toLowerCase();
+}
 
 const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -115,6 +121,7 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
     startTime: '',
     endTime: '',
     name: '',
+    teamName: '',
     paymentReference: '',
     status: 'confirmed',
   });
@@ -128,6 +135,7 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
     endTime: '',
     hours: 2,
     name: '',
+    teamName: '',
     paymentReference: '',
   });
 
@@ -137,9 +145,28 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
   });
 
   useEffect(() => {
+    // Require explicit credentials each time the admin page is opened.
+    void signOut(auth).catch((error) => {
+      console.error('Error resetting admin session:', error);
+    });
+  }, []);
+
+  useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
+      const adminEmail = getConfiguredAdminEmail();
+      const signedInEmail = user?.email?.toLowerCase() || '';
+      const isAdminSession = Boolean(user && adminEmail && signedInEmail === adminEmail);
+
       setCurrentUser(user);
-      setIsAuthenticated(Boolean(user));
+
+      if (user && !isAdminSession) {
+        void signOut(auth);
+        setIsAuthenticated(false);
+        setAuthError('This account is not authorized for admin access.');
+      } else {
+        setIsAuthenticated(isAdminSession);
+      }
+
       setAuthReady(true);
     });
 
@@ -209,7 +236,7 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
   const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    const adminEmail = import.meta.env.VITE_ADMIN_EMAIL;
+    const adminEmail = getConfiguredAdminEmail();
     const normalizedIdentifier = loginIdentifier.trim();
 
     if (!adminEmail) {
@@ -219,7 +246,12 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
 
     const emailToUse = normalizedIdentifier.toLowerCase() === ADMIN_USERNAME
       ? adminEmail
-      : normalizedIdentifier;
+      : normalizedIdentifier.toLowerCase();
+
+    if (emailToUse !== adminEmail) {
+      setAuthError('Only the configured admin account can log in here.');
+      return;
+    }
 
     try {
       await signInWithEmailAndPassword(auth, emailToUse, password);
@@ -306,6 +338,7 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
           duration: bookingHours,
           pitch: 'Standard',
           name: formState.name.trim() || 'Confirmed booking',
+          teamName: formState.teamName.trim() || '',
           phone: '',
           email: '',
           paymentReference: formState.paymentReference.trim() || '',
@@ -325,6 +358,7 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
             duration: bookingHours,
             pitch: 'Standard',
             name: formState.name.trim() || 'Recurring booking',
+            teamName: formState.teamName.trim() || '',
             phone: '',
             email: '',
             paymentReference: formState.paymentReference.trim() || '',
@@ -345,6 +379,7 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
         endTime: '',
         hours: 2,
         name: '',
+        teamName: '',
         paymentReference: '',
       });
       setIsRecurring(false);
@@ -366,6 +401,7 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
       startTime: booking.time,
       endTime: booking.endTime || calculateEndTime(booking.time, booking.duration),
       name: booking.name || '',
+      teamName: booking.teamName || '',
       paymentReference: booking.paymentReference || '',
       status: booking.status,
     });
@@ -391,6 +427,7 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
         endTime: editState.endTime,
         duration: nextDuration,
         name: editState.name.trim() || 'Confirmed booking',
+        teamName: editState.teamName.trim(),
         paymentReference: editState.paymentReference.trim(),
         status: editState.status,
         updatedAt: new Date().toISOString(),
@@ -689,6 +726,18 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
               </div>
 
               <div>
+                <label className="mb-2 block text-sm font-semibold text-gray-900">Team Name (Internal)</label>
+                <input
+                  type="text"
+                  value={formState.teamName}
+                  onChange={(event) => setFormState((current) => ({ ...current, teamName: event.target.value }))}
+                  className="w-full rounded-2xl border border-gray-300 px-4 py-3 focus:border-green-600 focus:outline-none"
+                  placeholder="Optional"
+                />
+                <p className="mt-2 text-xs text-gray-500">Stored for admin records only and not shown on the public booking pages.</p>
+              </div>
+
+              <div>
                 <label className="mb-2 block text-sm font-semibold text-gray-900">Payment Reference</label>
                 <input
                   type="text"
@@ -831,7 +880,7 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
                   <div key={booking.id} className="rounded-2xl border border-gray-200 p-5">
                     {editingBookingId === booking.id ? (
                       <div className="space-y-4">
-                        <div className="grid gap-3 sm:grid-cols-3">
+                        <div className="grid gap-3 sm:grid-cols-4">
                           <input
                             type="date"
                             value={editState.date}
@@ -871,6 +920,13 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
                             onChange={(event) => setEditState((current) => ({ ...current, name: event.target.value }))}
                             className="rounded-2xl border border-gray-300 px-4 py-3 focus:border-green-600 focus:outline-none"
                             placeholder="Customer name"
+                          />
+                          <input
+                            type="text"
+                            value={editState.teamName}
+                            onChange={(event) => setEditState((current) => ({ ...current, teamName: event.target.value }))}
+                            className="rounded-2xl border border-gray-300 px-4 py-3 focus:border-green-600 focus:outline-none"
+                            placeholder="Team name (internal)"
                           />
                           <input
                             type="text"

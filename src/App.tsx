@@ -1,12 +1,13 @@
-import { useState } from 'react';
+import { Suspense, lazy, useState } from 'react';
 import { Navbar, PageId } from './components/Navbar';
 import { Footer } from './components/Footer';
-import { HomePage } from './pages/HomePage';
-import { PitchesPage } from './pages/PitchesPage';
-import { BookPage } from './pages/BookPage';
-import { OrganizationsPage } from './pages/OrganizationsPage';
-import { ContactPage } from './pages/ContactPage';
-import { AdminPage } from './pages/AdminPage';
+
+const HomePage = lazy(() => import('./pages/HomePage').then((module) => ({ default: module.HomePage })));
+const PitchesPage = lazy(() => import('./pages/PitchesPage').then((module) => ({ default: module.PitchesPage })));
+const BookPage = lazy(() => import('./pages/BookPage').then((module) => ({ default: module.BookPage })));
+const OrganizationsPage = lazy(() => import('./pages/OrganizationsPage').then((module) => ({ default: module.OrganizationsPage })));
+const ContactPage = lazy(() => import('./pages/ContactPage').then((module) => ({ default: module.ContactPage })));
+const AdminPage = lazy(() => import('./pages/AdminPage').then((module) => ({ default: module.AdminPage })));
 
 const WHATSAPP_URL = 'https://wa.me/250792887614?text=Hello%20Soka%20Zone%2C%20I%20need%20help%20with%20booking.';
 
@@ -41,7 +42,19 @@ export function App() {
   return (
     <div className="min-h-screen bg-white text-gray-900 selection:bg-green-200 selection:text-green-900 flex flex-col">
       <Navbar currentPage={currentPage} onNavigate={setCurrentPage} />
-      <main className="flex-grow">{renderPage()}</main>
+      <main className="flex-grow">
+        <Suspense
+          fallback={(
+            <section className="bg-gray-50 min-h-screen py-16 px-4">
+              <div className="mx-auto max-w-md rounded-3xl bg-white p-8 text-center shadow-xl">
+                <p className="text-gray-600">Loading page...</p>
+              </div>
+            </section>
+          )}
+        >
+          {renderPage()}
+        </Suspense>
+      </main>
       <Footer onNavigate={setCurrentPage} />
       <a
         href={WHATSAPP_URL}
