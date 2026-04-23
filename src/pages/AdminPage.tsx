@@ -1,7 +1,8 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { User, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { addDoc, collection, deleteDoc, doc, getDocs, updateDoc } from 'firebase/firestore';
-import { Lock, LogOut, Plus, Trash2, XCircle } from 'lucide-react';
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
+import { addWeeks, format, parseISO } from 'date-fns';
+import { Lock, LogOut, Pencil, Plus, Save, Trash2, XCircle } from 'lucide-react';
 import { auth, db } from '../firebase';
 import { SALES_PHONE, getBookingPriceQuote } from '../utils/pricing';
 
@@ -17,6 +18,23 @@ type BookingRecord = {
   email: string;
   paymentReference?: string;
   amount?: number;
+  status: 'confirmed' | 'pending' | 'cancelled';
+  recurringSeriesId?: string;
+  recurringEndDate?: string;
+};
+
+type WeeklyBlock = {
+  dayOfWeek: number;
+  startHour: number;
+  endHour: number;
+};
+
+type BookingEditState = {
+  date: string;
+  startTime: string;
+  endTime: string;
+  name: string;
+  paymentReference: string;
   status: 'confirmed' | 'pending' | 'cancelled';
 };
 
@@ -39,6 +57,20 @@ const endTimeSlots = [
 const hourOptions = Array.from({ length: 12 }, (_, index) => index + 1);
 
 const ADMIN_USERNAME = 'admin';
+
+const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+const defaultWeeklyBlocks: WeeklyBlock[] = [
+  { dayOfWeek: 1, startHour: 19, endHour: 22 },
+  { dayOfWeek: 2, startHour: 18, endHour: 20 },
+  { dayOfWeek: 3, startHour: 7, endHour: 9 },
+  { dayOfWeek: 3, startHour: 18, endHour: 22 },
+  { dayOfWeek: 4, startHour: 17, endHour: 22 },
+  { dayOfWeek: 5, startHour: 7, endHour: 9 },
+  { dayOfWeek: 5, startHour: 15, endHour: 22 },
+  { dayOfWeek: 6, startHour: 8, endHour: 12 },
+  { dayOfWeek: 0, startHour: 7, endHour: 14 },
+];
 
 function timeToHour(time: string): number {
   return Number.parseInt(time.split(':')[0], 10);
@@ -75,6 +107,21 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
   const [bookings, setBookings] = useState<BookingRecord[]>([]);
   const [actionError, setActionError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurringEndDate, setRecurringEndDate] = useState('');
+  const [editingBookingId, setEditingBookingId] = useState<string | null>(null);
+  const [editState, setEditState] = useState<BookingEditState>({
+    date: '',
+    startTime: '',
+    endTime: '',
+    name: '',
+    paymentReference: '',
+    status: 'confirmed',
+  });
+  const [weeklyBlocks, setWeeklyBlocks] = useState<WeeklyBlock[]>(defaultWeeklyBlocks);
+  const [blockDraft, setBlockDraft] = useState({ dayOfWeek: 5, startTime: '18:00', endTime: '20:00' });
+  const [savingBlocks, setSavingBlocks] = useState(false);
+  const [blockMessage, setBlockMessage] = useState<string | null>(null);
   const [formState, setFormState] = useState({
     date: '',
     startTime: '',
@@ -102,8 +149,43 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
   useEffect(() => {
     if (isAuthenticated) {
       void loadBookings();
+      void loadWeeklyBlocks();
     }
   }, [isAuthenticated]);
+
+  const loadWeeklyBlocks = async () => {
+    try {
+      const settingsSnapshot = await getDoc(doc(db, 'settings', 'calendarBlocks'));
+      const payload = settingsSnapshot.data()?.weeklyBlocks;
+
+      if (!Array.isArray(payload)) {
+        setWeeklyBlocks(defaultWeeklyBlocks);
+        return;
+      }
+
+      const normalized = payload
+        .map((entry) => ({
+          dayOfWeek: Number(entry.dayOfWeek),
+          startHour: Number(entry.startHour),
+          endHour: Number(entry.endHour),
+        }))
+        .filter((entry) => (
+          Number.isInteger(entry.dayOfWeek)
+          && entry.dayOfWeek >= 0
+          && entry.dayOfWeek <= 6
+          && Number.isInteger(entry.startHour)
+          && Number.isInteger(entry.endHour)
+          && entry.startHour >= 0
+          && entry.endHour <= 24
+          && entry.endHour > entry.startHour
+        ));
+
+      setWeeklyBlocks(normalized.length > 0 ? normalized : defaultWeeklyBlocks);
+    } catch (error) {
+      console.error('Error loading weekly blocks:', error);
+      setBlockMessage('Failed to load weekly blocked slots.');
+    }
+  };
 
   const loadBookings = async () => {
     setLoadingBookings(true);
@@ -161,7 +243,7 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
 
   const handleCreateBooking = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-
+  
     if (!formState.date || !formState.startTime || !formState.endTime) {
       setActionError('Date, start time, and end time are required.');
       return;
@@ -174,26 +256,88 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
       return;
     }
 
+    if (isRecurring) {
+      if (!recurringEndDate) {
+        setActionError('Recurring bookings require an end date.');
+        return;
+      }
+
+      if (recurringEndDate < formState.date) {
+        setActionError('Recurring end date must be on or after the start date.');
+        return;
+      }
+    }
+
     setSaving(true);
     setActionError(null);
 
     try {
-      const bookingPayload = {
-        date: formState.date,
-        time: formState.startTime,
-        endTime: formState.endTime,
-        duration: bookingHours,
-        pitch: 'Standard',
-        name: formState.name.trim() || 'Confirmed booking',
-        phone: '',
-        email: '',
-        paymentReference: formState.paymentReference.trim() || '',
-        status: 'confirmed',
-        updatedAt: new Date().toISOString(),
-        ...(bookingPriceQuote.amount !== null ? { amount: bookingPriceQuote.amount } : {}),
-      };
+      const nowIso = new Date().toISOString();
+      const recurringSeriesId = isRecurring
+        ? `rec-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+        : undefined;
 
-      await addDoc(collection(db, 'bookings'), bookingPayload);
+      const bookingDates: string[] = [];
+      if (isRecurring && recurringEndDate) {
+        let currentDate = parseISO(formState.date);
+        const endDate = parseISO(recurringEndDate);
+
+        while (currentDate <= endDate) {
+          bookingDates.push(format(currentDate, 'yyyy-MM-dd'));
+          currentDate = addWeeks(currentDate, 1);
+
+          if (bookingDates.length > 80) {
+            throw new Error('Too many recurring slots. Please shorten recurrence range.');
+          }
+        }
+      } else {
+        bookingDates.push(formState.date);
+      }
+
+      if (bookingDates.length === 0) {
+        throw new Error('No booking dates generated.');
+      }
+
+      if (bookingDates.length === 1) {
+        await addDoc(collection(db, 'bookings'), {
+          date: bookingDates[0],
+          time: formState.startTime,
+          endTime: formState.endTime,
+          duration: bookingHours,
+          pitch: 'Standard',
+          name: formState.name.trim() || 'Confirmed booking',
+          phone: '',
+          email: '',
+          paymentReference: formState.paymentReference.trim() || '',
+          status: 'confirmed',
+          updatedAt: nowIso,
+          ...(bookingPriceQuote.amount !== null ? { amount: bookingPriceQuote.amount } : {}),
+        });
+      } else {
+        const batch = writeBatch(db);
+        const bookingsCollection = collection(db, 'bookings');
+
+        bookingDates.forEach((date) => {
+          batch.set(doc(bookingsCollection), {
+            date,
+            time: formState.startTime,
+            endTime: formState.endTime,
+            duration: bookingHours,
+            pitch: 'Standard',
+            name: formState.name.trim() || 'Recurring booking',
+            phone: '',
+            email: '',
+            paymentReference: formState.paymentReference.trim() || '',
+            status: 'confirmed',
+            recurringSeriesId,
+            recurringEndDate,
+            updatedAt: nowIso,
+            ...(bookingPriceQuote.amount !== null ? { amount: bookingPriceQuote.amount } : {}),
+          });
+        });
+
+        await batch.commit();
+      }
 
       setFormState({
         date: '',
@@ -203,6 +347,8 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
         name: '',
         paymentReference: '',
       });
+      setIsRecurring(false);
+      setRecurringEndDate('');
 
       await loadBookings();
     } catch (error) {
@@ -211,6 +357,98 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
     } finally {
       setSaving(false);
     }
+  };
+
+  const startEditingBooking = (booking: BookingRecord) => {
+    setEditingBookingId(booking.id);
+    setEditState({
+      date: booking.date,
+      startTime: booking.time,
+      endTime: booking.endTime || calculateEndTime(booking.time, booking.duration),
+      name: booking.name || '',
+      paymentReference: booking.paymentReference || '',
+      status: booking.status,
+    });
+    setActionError(null);
+  };
+
+  const handleSaveBookingEdit = async (bookingId: string) => {
+    if (!editState.date || !editState.startTime || !editState.endTime) {
+      setActionError('Date, start time, and end time are required for editing.');
+      return;
+    }
+
+    const nextDuration = calculateHoursBetween(editState.startTime, editState.endTime);
+    if (nextDuration <= 0 || nextDuration > 12) {
+      setActionError('Edited booking duration must be between 1 and 12 hours.');
+      return;
+    }
+
+    try {
+      await updateDoc(doc(db, 'bookings', bookingId), {
+        date: editState.date,
+        time: editState.startTime,
+        endTime: editState.endTime,
+        duration: nextDuration,
+        name: editState.name.trim() || 'Confirmed booking',
+        paymentReference: editState.paymentReference.trim(),
+        status: editState.status,
+        updatedAt: new Date().toISOString(),
+      });
+
+      setEditingBookingId(null);
+      await loadBookings();
+    } catch (error) {
+      console.error('Error editing booking:', error);
+      setActionError('Failed to save booking changes.');
+    }
+  };
+
+  const handleSaveWeeklyBlocks = async () => {
+    if (weeklyBlocks.length === 0) {
+      setBlockMessage('Add at least one weekly blocked slot before saving.');
+      return;
+    }
+
+    setSavingBlocks(true);
+    setBlockMessage(null);
+
+    try {
+      await setDoc(doc(db, 'settings', 'calendarBlocks'), {
+        weeklyBlocks,
+        updatedAt: new Date().toISOString(),
+      }, { merge: true });
+      setBlockMessage('Weekly blocked slots saved.');
+    } catch (error) {
+      console.error('Error saving weekly blocks:', error);
+      setBlockMessage('Failed to save weekly blocked slots.');
+    } finally {
+      setSavingBlocks(false);
+    }
+  };
+
+  const handleAddWeeklyBlock = () => {
+    const startHour = timeToHour(blockDraft.startTime);
+    const endHour = timeToHour(blockDraft.endTime);
+
+    if (endHour <= startHour) {
+      setBlockMessage('Block end time must be after start time.');
+      return;
+    }
+
+    setWeeklyBlocks((current) => ([
+      ...current,
+      {
+        dayOfWeek: blockDraft.dayOfWeek,
+        startHour,
+        endHour,
+      },
+    ]));
+    setBlockMessage(null);
+  };
+
+  const handleRemoveWeeklyBlock = (index: number) => {
+    setWeeklyBlocks((current) => current.filter((_, currentIndex) => currentIndex !== index));
   };
 
   const handleCancelBooking = async (bookingId: string) => {
@@ -461,6 +699,36 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
                 />
               </div>
 
+              <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                <label className="inline-flex items-center gap-2 text-sm font-semibold text-gray-900">
+                  <input
+                    type="checkbox"
+                    checked={isRecurring}
+                    onChange={(event) => {
+                      setIsRecurring(event.target.checked);
+                      if (!event.target.checked) {
+                        setRecurringEndDate('');
+                      }
+                    }}
+                    className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                  />
+                  Recurring weekly booking
+                </label>
+                <p className="mt-2 text-xs text-gray-600">Example: Every Friday at 18:00 until an end date.</p>
+                {isRecurring && (
+                  <div className="mt-3">
+                    <label className="mb-2 block text-sm font-semibold text-gray-900">Recurring End Date</label>
+                    <input
+                      type="date"
+                      min={formState.date || undefined}
+                      value={recurringEndDate}
+                      onChange={(event) => setRecurringEndDate(event.target.value)}
+                      className="w-full rounded-2xl border border-gray-300 px-4 py-3 focus:border-green-600 focus:outline-none"
+                    />
+                  </div>
+                )}
+              </div>
+
               {actionError && (
                 <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                   {actionError}
@@ -472,12 +740,85 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
                 disabled={saving}
                 className="w-full rounded-2xl bg-green-600 px-6 py-4 font-semibold text-white transition hover:bg-green-700 disabled:bg-gray-400"
               >
-                {saving ? 'Saving...' : 'Confirm Payment and Block Slot'}
+                {saving ? 'Saving...' : isRecurring ? 'Save Recurring Bookings' : 'Confirm Payment and Block Slot'}
               </button>
             </form>
           </div>
 
-          <div className="rounded-3xl bg-white p-8 shadow-xl">
+          <div className="space-y-8">
+            <div className="rounded-3xl bg-white p-8 shadow-xl">
+              <h2 className="mb-6 text-2xl font-bold text-gray-900">Weekly Blocked Slots</h2>
+              <p className="mb-4 text-sm text-gray-600">These replace the old hardcoded blocked slots shown on the booking calendar.</p>
+
+              <div className="grid gap-3 sm:grid-cols-[1fr_1fr_1fr_auto]">
+                <select
+                  value={blockDraft.dayOfWeek}
+                  onChange={(event) => setBlockDraft((current) => ({ ...current, dayOfWeek: Number(event.target.value) }))}
+                  className="rounded-2xl border border-gray-300 px-4 py-3 focus:border-green-600 focus:outline-none"
+                >
+                  {dayNames.map((dayName, index) => (
+                    <option key={dayName} value={index}>{dayName}</option>
+                  ))}
+                </select>
+                <select
+                  value={blockDraft.startTime}
+                  onChange={(event) => setBlockDraft((current) => ({ ...current, startTime: event.target.value }))}
+                  className="rounded-2xl border border-gray-300 px-4 py-3 focus:border-green-600 focus:outline-none"
+                >
+                  {timeSlots.map((timeSlot) => (
+                    <option key={timeSlot} value={timeSlot}>{timeSlot}</option>
+                  ))}
+                </select>
+                <select
+                  value={blockDraft.endTime}
+                  onChange={(event) => setBlockDraft((current) => ({ ...current, endTime: event.target.value }))}
+                  className="rounded-2xl border border-gray-300 px-4 py-3 focus:border-green-600 focus:outline-none"
+                >
+                  {endTimeSlots.map((timeSlot) => (
+                    <option key={timeSlot} value={timeSlot}>{timeSlot}</option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={handleAddWeeklyBlock}
+                  className="rounded-2xl border border-green-300 bg-green-50 px-4 py-3 text-sm font-semibold text-green-700 transition hover:bg-green-100"
+                >
+                  Add
+                </button>
+              </div>
+
+              <div className="mt-5 space-y-2">
+                {weeklyBlocks.map((block, index) => (
+                  <div key={`${block.dayOfWeek}-${block.startHour}-${block.endHour}-${index}`} className="flex items-center justify-between rounded-2xl border border-gray-200 px-4 py-3 text-sm text-gray-700">
+                    <span>{dayNames[block.dayOfWeek]} {hourToTime(block.startHour)} - {hourToTime(block.endHour)}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveWeeklyBlock(index)}
+                      className="rounded-xl border border-red-200 px-3 py-1 font-semibold text-red-700 transition hover:bg-red-50"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {blockMessage && (
+                <div className="mt-4 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
+                  {blockMessage}
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={handleSaveWeeklyBlocks}
+                disabled={savingBlocks}
+                className="mt-5 w-full rounded-2xl bg-gray-900 px-6 py-3 font-semibold text-white transition hover:bg-black disabled:bg-gray-500"
+              >
+                {savingBlocks ? 'Saving...' : 'Save Weekly Blocked Slots'}
+              </button>
+            </div>
+
+            <div className="rounded-3xl bg-white p-8 shadow-xl">
             <h2 className="mb-6 text-2xl font-bold text-gray-900">Calendar Bookings</h2>
 
             {loadingBookings ? (
@@ -488,45 +829,134 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
               <div className="space-y-4">
                 {bookings.map((booking) => (
                   <div key={booking.id} className="rounded-2xl border border-gray-200 p-5">
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                      <div>
-                        <div className="flex items-center gap-3">
-                          <p className="text-lg font-semibold text-gray-900">{booking.date} from {booking.time} to {booking.endTime || calculateEndTime(booking.time, booking.duration)}</p>
-                          <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                            booking.status === 'confirmed'
-                              ? 'bg-green-100 text-green-700'
-                              : booking.status === 'cancelled'
-                                ? 'bg-red-100 text-red-700'
-                                : 'bg-yellow-100 text-yellow-700'
-                          }`}>
-                            {booking.status}
-                          </span>
-                        </div>
-                        <p className="mt-2 text-sm text-gray-600">Duration: {booking.duration} hours</p>
-                        {booking.name && <p className="text-sm text-gray-600">Customer: {booking.name}</p>}
-                        {booking.paymentReference && <p className="text-sm text-gray-600">Payment ref: {booking.paymentReference}</p>}
-                      </div>
-                      <div className="flex gap-2">
-                        {booking.status !== 'cancelled' && (
-                          <button
-                            onClick={() => handleCancelBooking(booking.id)}
-                            className="inline-flex items-center gap-2 rounded-2xl border border-red-200 px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-50"
+                    {editingBookingId === booking.id ? (
+                      <div className="space-y-4">
+                        <div className="grid gap-3 sm:grid-cols-3">
+                          <input
+                            type="date"
+                            value={editState.date}
+                            onChange={(event) => setEditState((current) => ({ ...current, date: event.target.value }))}
+                            className="rounded-2xl border border-gray-300 px-4 py-3 focus:border-green-600 focus:outline-none"
+                          />
+                          <select
+                            value={editState.startTime}
+                            onChange={(event) => {
+                              const nextStartTime = event.target.value;
+                              const nextEndTime = calculateEndTime(nextStartTime, calculateHoursBetween(editState.startTime, editState.endTime) || 2);
+                              setEditState((current) => ({ ...current, startTime: nextStartTime, endTime: endTimeSlots.includes(nextEndTime) ? nextEndTime : current.endTime }));
+                            }}
+                            className="rounded-2xl border border-gray-300 px-4 py-3 focus:border-green-600 focus:outline-none"
                           >
-                            <XCircle className="h-4 w-4" /> Cancel
+                            {timeSlots.map((timeSlot) => (
+                              <option key={timeSlot} value={timeSlot}>{timeSlot}</option>
+                            ))}
+                          </select>
+                          <select
+                            value={editState.endTime}
+                            onChange={(event) => setEditState((current) => ({ ...current, endTime: event.target.value }))}
+                            className="rounded-2xl border border-gray-300 px-4 py-3 focus:border-green-600 focus:outline-none"
+                          >
+                            {endTimeSlots
+                              .filter((timeSlot) => calculateHoursBetween(editState.startTime, timeSlot) >= 1)
+                              .map((timeSlot) => (
+                                <option key={timeSlot} value={timeSlot}>{timeSlot}</option>
+                              ))}
+                          </select>
+                        </div>
+
+                        <div className="grid gap-3 sm:grid-cols-3">
+                          <input
+                            type="text"
+                            value={editState.name}
+                            onChange={(event) => setEditState((current) => ({ ...current, name: event.target.value }))}
+                            className="rounded-2xl border border-gray-300 px-4 py-3 focus:border-green-600 focus:outline-none"
+                            placeholder="Customer name"
+                          />
+                          <input
+                            type="text"
+                            value={editState.paymentReference}
+                            onChange={(event) => setEditState((current) => ({ ...current, paymentReference: event.target.value }))}
+                            className="rounded-2xl border border-gray-300 px-4 py-3 focus:border-green-600 focus:outline-none"
+                            placeholder="Payment reference"
+                          />
+                          <select
+                            value={editState.status}
+                            onChange={(event) => setEditState((current) => ({ ...current, status: event.target.value as BookingEditState['status'] }))}
+                            className="rounded-2xl border border-gray-300 px-4 py-3 focus:border-green-600 focus:outline-none"
+                          >
+                            <option value="confirmed">confirmed</option>
+                            <option value="pending">pending</option>
+                            <option value="cancelled">cancelled</option>
+                          </select>
+                        </div>
+
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => void handleSaveBookingEdit(booking.id)}
+                            className="inline-flex items-center gap-2 rounded-2xl bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700"
+                          >
+                            <Save className="h-4 w-4" /> Save
                           </button>
-                        )}
-                        <button
-                          onClick={() => handleDeleteBooking(booking.id)}
-                          className="inline-flex items-center gap-2 rounded-2xl border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-                        >
-                          <Trash2 className="h-4 w-4" /> Delete
-                        </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditingBookingId(null)}
+                            className="inline-flex items-center gap-2 rounded-2xl border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                          >
+                            Cancel Edit
+                          </button>
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <div className="flex items-center gap-3">
+                            <p className="text-lg font-semibold text-gray-900">{booking.date} from {booking.time} to {booking.endTime || calculateEndTime(booking.time, booking.duration)}</p>
+                            <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                              booking.status === 'confirmed'
+                                ? 'bg-green-100 text-green-700'
+                                : booking.status === 'cancelled'
+                                  ? 'bg-red-100 text-red-700'
+                                  : 'bg-yellow-100 text-yellow-700'
+                            }`}>
+                              {booking.status}
+                            </span>
+                          </div>
+                          <p className="mt-2 text-sm text-gray-600">Duration: {booking.duration} hours</p>
+                          {booking.name && <p className="text-sm text-gray-600">Customer: {booking.name}</p>}
+                          {booking.paymentReference && <p className="text-sm text-gray-600">Payment ref: {booking.paymentReference}</p>}
+                          {booking.recurringSeriesId && <p className="text-xs text-gray-500">Recurring booking series</p>}
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => startEditingBooking(booking)}
+                            className="inline-flex items-center gap-2 rounded-2xl border border-blue-200 px-4 py-2 text-sm font-semibold text-blue-700 transition hover:bg-blue-50"
+                          >
+                            <Pencil className="h-4 w-4" /> Edit
+                          </button>
+                          {booking.status !== 'cancelled' && (
+                            <button
+                              onClick={() => handleCancelBooking(booking.id)}
+                              className="inline-flex items-center gap-2 rounded-2xl border border-red-200 px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-50"
+                            >
+                              <XCircle className="h-4 w-4" /> Cancel
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleDeleteBooking(booking.id)}
+                            className="inline-flex items-center gap-2 rounded-2xl border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                          >
+                            <Trash2 className="h-4 w-4" /> Delete
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
             )}
+          </div>
           </div>
         </div>
       </div>

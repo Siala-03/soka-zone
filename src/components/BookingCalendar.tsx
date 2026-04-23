@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { 
   collection, 
+  doc,
+  getDoc,
   query, 
   where, 
   getDocs
@@ -31,6 +33,12 @@ interface Booking {
   status: 'confirmed' | 'pending' | 'cancelled';
 }
 
+type WeeklyBlock = {
+  dayOfWeek: number;
+  startHour: number;
+  endHour: number;
+};
+
 interface BookingCalendarProps {
   pitchType?: string;
   duration?: number;
@@ -44,28 +52,33 @@ const timeSlots = [
   '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'
 ];
 
-// Subscription-based blocked times (recurring weekly)
-// Format: dayOfWeek (0=Sunday, 1=Monday, etc.) -> array of [startHour, endHour]
-const subscriptionBlocks: Record<number, Array<[number, number]>> = {
-  1: [[19, 22]], // Monday: 19:00-22:00
-  2: [[18, 20]], // Tuesday: 18:00-20:00
-  3: [[7, 9], [18, 22]], // Wednesday: 07:00-09:00, 18:00-22:00
-  4: [[17, 22]], // Thursday: 17:00-22:00
-  5: [[7, 9], [15, 22]], // Friday: 07:00-09:00, 15:00-22:00
-  6: [[8, 12]], // Saturday: 08:00-12:00
-  0: [[7, 14]], // Sunday: 07:00-14:00
-};
+const defaultWeeklyBlocks: WeeklyBlock[] = [
+  { dayOfWeek: 1, startHour: 19, endHour: 22 },
+  { dayOfWeek: 2, startHour: 18, endHour: 20 },
+  { dayOfWeek: 3, startHour: 7, endHour: 9 },
+  { dayOfWeek: 3, startHour: 18, endHour: 22 },
+  { dayOfWeek: 4, startHour: 17, endHour: 22 },
+  { dayOfWeek: 5, startHour: 7, endHour: 9 },
+  { dayOfWeek: 5, startHour: 15, endHour: 22 },
+  { dayOfWeek: 6, startHour: 8, endHour: 12 },
+  { dayOfWeek: 0, startHour: 7, endHour: 14 },
+];
 
 export function BookingCalendar({ pitchType = 'Standard', duration = 2, onDateTimeSelect }: BookingCalendarProps) {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [weeklyBlocks, setWeeklyBlocks] = useState<WeeklyBlock[]>(defaultWeeklyBlocks);
   const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
 
   // Fetch bookings for selected date and pitch
   useEffect(() => {
     fetchBookings();
   }, [selectedDate, pitchType, duration]);
+
+  useEffect(() => {
+    void fetchWeeklyBlocks();
+  }, []);
 
   useEffect(() => {
     setSelectedTime(null);
@@ -92,6 +105,40 @@ export function BookingCalendar({ pitchType = 'Standard', duration = 2, onDateTi
     }
   };
 
+  const fetchWeeklyBlocks = async () => {
+    try {
+      const settingsSnapshot = await getDoc(doc(db, 'settings', 'calendarBlocks'));
+      const weeklyBlockPayload = settingsSnapshot.data()?.weeklyBlocks;
+
+      if (!Array.isArray(weeklyBlockPayload)) {
+        setWeeklyBlocks(defaultWeeklyBlocks);
+        return;
+      }
+
+      const normalized = weeklyBlockPayload
+        .map((entry) => ({
+          dayOfWeek: Number(entry.dayOfWeek),
+          startHour: Number(entry.startHour),
+          endHour: Number(entry.endHour),
+        }))
+        .filter((entry) => (
+          Number.isInteger(entry.dayOfWeek)
+          && entry.dayOfWeek >= 0
+          && entry.dayOfWeek <= 6
+          && Number.isInteger(entry.startHour)
+          && Number.isInteger(entry.endHour)
+          && entry.startHour >= 0
+          && entry.endHour <= 24
+          && entry.endHour > entry.startHour
+        ));
+
+      setWeeklyBlocks(normalized.length > 0 ? normalized : defaultWeeklyBlocks);
+    } catch (error) {
+      console.error('Error fetching weekly blocks:', error);
+      setWeeklyBlocks(defaultWeeklyBlocks);
+    }
+  };
+
   const weekDays = eachDayOfInterval({
     start: currentWeekStart,
     end: endOfWeek(currentWeekStart, { weekStartsOn: 1 })
@@ -101,13 +148,12 @@ export function BookingCalendar({ pitchType = 'Standard', duration = 2, onDateTi
   const isSubscriptionBlocked = (time: string) => {
     const timeHour = parseInt(time.split(':')[0]);
     const dayOfWeek = selectedDate.getDay();
-    
-    const blocks = subscriptionBlocks[dayOfWeek];
-    if (!blocks) return false;
-    
-    return blocks.some(([startHour, endHour]) => 
-      timeHour >= startHour && timeHour < endHour
-    );
+
+    return weeklyBlocks.some((block) => (
+      block.dayOfWeek === dayOfWeek
+      && timeHour >= block.startHour
+      && timeHour < block.endHour
+    ));
   };
 
   // Check if a time slot is booked (either directly or as part of a longer booking)
