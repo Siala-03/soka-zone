@@ -1,8 +1,8 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { User, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDocs, updateDoc, writeBatch } from 'firebase/firestore';
 import { addWeeks, format, parseISO } from 'date-fns';
-import { Lock, LogOut, Pencil, Plus, Save, Trash2, XCircle } from 'lucide-react';
+import { Download, Eye, Lock, LogOut, Pencil, Plus, Save, Trash2 } from 'lucide-react';
 import { auth, db } from '../firebase';
 import { SALES_PHONE, getBookingPriceQuote } from '../utils/pricing';
 
@@ -22,12 +22,6 @@ type BookingRecord = {
   status: 'confirmed' | 'pending' | 'cancelled';
   recurringSeriesId?: string;
   recurringEndDate?: string;
-};
-
-type WeeklyBlock = {
-  dayOfWeek: number;
-  startHour: number;
-  endHour: number;
 };
 
 type BookingEditState = {
@@ -64,20 +58,6 @@ function getConfiguredAdminEmail(): string {
   return (import.meta.env.VITE_ADMIN_EMAIL || '').toString().trim().toLowerCase();
 }
 
-const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-
-const defaultWeeklyBlocks: WeeklyBlock[] = [
-  { dayOfWeek: 1, startHour: 19, endHour: 22 },
-  { dayOfWeek: 2, startHour: 18, endHour: 20 },
-  { dayOfWeek: 3, startHour: 7, endHour: 9 },
-  { dayOfWeek: 3, startHour: 18, endHour: 22 },
-  { dayOfWeek: 4, startHour: 17, endHour: 22 },
-  { dayOfWeek: 5, startHour: 7, endHour: 9 },
-  { dayOfWeek: 5, startHour: 15, endHour: 22 },
-  { dayOfWeek: 6, startHour: 8, endHour: 12 },
-  { dayOfWeek: 0, startHour: 7, endHour: 14 },
-];
-
 function timeToHour(time: string): number {
   return Number.parseInt(time.split(':')[0], 10);
 }
@@ -108,7 +88,7 @@ function getPermissionAwareErrorMessage(error: unknown, fallback: string): strin
     : '';
 
   if (errorCode === 'permission-denied') {
-    return 'Permission denied by Firestore rules. Ensure your admin account has write access to bookings and settings/calendarBlocks.';
+    return 'Permission denied by Firestore rules. Ensure your admin account has write access to bookings.';
   }
 
   return fallback;
@@ -137,10 +117,7 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
     paymentReference: '',
     status: 'confirmed',
   });
-  const [weeklyBlocks, setWeeklyBlocks] = useState<WeeklyBlock[]>(defaultWeeklyBlocks);
-  const [blockDraft, setBlockDraft] = useState({ dayOfWeek: 5, startTime: '18:00', endTime: '20:00' });
-  const [savingBlocks, setSavingBlocks] = useState(false);
-  const [blockMessage, setBlockMessage] = useState<string | null>(null);
+  const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [formState, setFormState] = useState({
     date: '',
     startTime: '',
@@ -188,43 +165,8 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
   useEffect(() => {
     if (isAuthenticated) {
       void loadBookings();
-      void loadWeeklyBlocks();
     }
   }, [isAuthenticated]);
-
-  const loadWeeklyBlocks = async () => {
-    try {
-      const settingsSnapshot = await getDoc(doc(db, 'settings', 'calendarBlocks'));
-      const payload = settingsSnapshot.data()?.weeklyBlocks;
-
-      if (!Array.isArray(payload)) {
-        setWeeklyBlocks(defaultWeeklyBlocks);
-        return;
-      }
-
-      const normalized = payload
-        .map((entry) => ({
-          dayOfWeek: Number(entry.dayOfWeek),
-          startHour: Number(entry.startHour),
-          endHour: Number(entry.endHour),
-        }))
-        .filter((entry) => (
-          Number.isInteger(entry.dayOfWeek)
-          && entry.dayOfWeek >= 0
-          && entry.dayOfWeek <= 6
-          && Number.isInteger(entry.startHour)
-          && Number.isInteger(entry.endHour)
-          && entry.startHour >= 0
-          && entry.endHour <= 24
-          && entry.endHour > entry.startHour
-        ));
-
-      setWeeklyBlocks(normalized.length > 0 ? normalized : defaultWeeklyBlocks);
-    } catch (error) {
-      console.error('Error loading weekly blocks:', error);
-      setBlockMessage(getPermissionAwareErrorMessage(error, 'Failed to load weekly blocked slots.'));
-    }
-  };
 
   const loadBookings = async () => {
     setLoadingBookings(true);
@@ -453,65 +395,37 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
     }
   };
 
-  const handleSaveWeeklyBlocks = async () => {
-    if (weeklyBlocks.length === 0) {
-      setBlockMessage('Add at least one weekly blocked slot before saving.');
-      return;
-    }
+  const handleDownloadBookings = () => {
+    const csvHeader = ['Date', 'Start Time', 'End Time', 'Duration', 'Customer Name', 'Team Name', 'Status', 'Payment Reference', 'Amount', 'Recurring Series'];
+    const csvRows = bookings.map((booking) => [
+      booking.date,
+      booking.time,
+      booking.endTime || calculateEndTime(booking.time, booking.duration),
+      booking.duration.toString(),
+      booking.name || '',
+      booking.teamName || '',
+      booking.status,
+      booking.paymentReference || '',
+      booking.amount?.toString() || '',
+      booking.recurringSeriesId || '',
+    ]);
 
-    setSavingBlocks(true);
-    setBlockMessage(null);
+    const escapeCell = (value: string) => `"${value.replace(/"/g, '""')}"`;
+    const csvContent = [csvHeader, ...csvRows].map((row) => row.map(escapeCell).join(',')).join('\n');
+    const csvBlob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const downloadUrl = URL.createObjectURL(csvBlob);
 
-    try {
-      await setDoc(doc(db, 'settings', 'calendarBlocks'), {
-        weeklyBlocks,
-        updatedAt: new Date().toISOString(),
-      }, { merge: true });
-      setBlockMessage('Weekly blocked slots saved.');
-    } catch (error) {
-      console.error('Error saving weekly blocks:', error);
-      setBlockMessage(getPermissionAwareErrorMessage(error, 'Failed to save weekly blocked slots.'));
-    } finally {
-      setSavingBlocks(false);
-    }
+    const anchor = document.createElement('a');
+    anchor.href = downloadUrl;
+    anchor.download = `bookings-${new Date().toISOString().slice(0, 10)}.csv`;
+    anchor.click();
+
+    URL.revokeObjectURL(downloadUrl);
   };
 
-  const handleAddWeeklyBlock = () => {
-    const startHour = timeToHour(blockDraft.startTime);
-    const endHour = timeToHour(blockDraft.endTime);
-
-    if (endHour <= startHour) {
-      setBlockMessage('Block end time must be after start time.');
-      return;
-    }
-
-    setWeeklyBlocks((current) => ([
-      ...current,
-      {
-        dayOfWeek: blockDraft.dayOfWeek,
-        startHour,
-        endHour,
-      },
-    ]));
-    setBlockMessage(null);
-  };
-
-  const handleRemoveWeeklyBlock = (index: number) => {
-    setWeeklyBlocks((current) => current.filter((_, currentIndex) => currentIndex !== index));
-  };
-
-  const handleCancelBooking = async (bookingId: string) => {
-    try {
-      await updateDoc(doc(db, 'bookings', bookingId), {
-        status: 'cancelled',
-        updatedAt: new Date().toISOString(),
-      });
-      await loadBookings();
-    } catch (error) {
-      console.error('Error cancelling booking:', error);
-      setActionError(getPermissionAwareErrorMessage(error, 'Failed to cancel booking.'));
-    }
-  };
+  const selectedBooking = selectedBookingId
+    ? bookings.find((booking) => booking.id === selectedBookingId) || null
+    : null;
 
   const handleDeleteBooking = async (bookingId: string) => {
     try {
@@ -603,6 +517,12 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
             {currentUser?.email && <p className="mt-2 text-sm text-gray-500">Signed in as {currentUser.email}</p>}
           </div>
           <div className="flex gap-3">
+            <button
+              onClick={handleDownloadBookings}
+              className="inline-flex items-center gap-2 rounded-2xl border border-gray-300 px-5 py-3 font-semibold text-gray-700 transition hover:bg-gray-50"
+            >
+              <Download className="h-4 w-4" /> Download CSV
+            </button>
             <button
               onClick={loadBookings}
               className="rounded-2xl border border-gray-300 px-5 py-3 font-semibold text-gray-700 transition hover:bg-gray-50"
@@ -806,24 +726,108 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
             </form>
           </div>
 
-          <div className="space-y-8">
-            <div className="rounded-3xl bg-white p-8 shadow-xl">
-              <h2 className="mb-6 text-2xl font-bold text-gray-900">Weekly Blocked Slots</h2>
-              <p className="mb-4 text-sm text-gray-600">These replace the old hardcoded blocked slots shown on the booking calendar.</p>
+          <div className="rounded-3xl bg-white p-8 shadow-xl">
+            <h2 className="mb-6 text-2xl font-bold text-gray-900">Calendar Bookings</h2>
 
-              <div className="grid gap-3 sm:grid-cols-[1fr_1fr_1fr_auto]">
-                <select
-                  value={blockDraft.dayOfWeek}
-                  onChange={(event) => setBlockDraft((current) => ({ ...current, dayOfWeek: Number(event.target.value) }))}
+            {actionError && (
+              <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {actionError}
+              </div>
+            )}
+
+            {loadingBookings ? (
+              <p className="text-gray-600">Loading bookings...</p>
+            ) : bookings.length === 0 ? (
+              <p className="text-gray-600">No bookings saved yet.</p>
+            ) : (
+              <div className="overflow-x-auto rounded-2xl border border-gray-200">
+                <table className="min-w-full divide-y divide-gray-200 text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">Date</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">Time</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">Duration</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">Customer</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">Team</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">Status</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">Payment Ref</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 bg-white">
+                    {bookings.map((booking) => (
+                      <tr key={booking.id} className="align-top">
+                        <td className="px-4 py-3 text-gray-800">{booking.date}</td>
+                        <td className="px-4 py-3 text-gray-800">{booking.time} - {booking.endTime || calculateEndTime(booking.time, booking.duration)}</td>
+                        <td className="px-4 py-3 text-gray-800">{booking.duration}h</td>
+                        <td className="px-4 py-3 text-gray-800">{booking.name || '-'}</td>
+                        <td className="px-4 py-3 text-gray-800">{booking.teamName || '-'}</td>
+                        <td className="px-4 py-3">
+                          <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                            booking.status === 'confirmed'
+                              ? 'bg-green-100 text-green-700'
+                              : booking.status === 'cancelled'
+                                ? 'bg-red-100 text-red-700'
+                                : 'bg-yellow-100 text-yellow-700'
+                          }`}>
+                            {booking.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-gray-700">{booking.paymentReference || '-'}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedBookingId(booking.id)}
+                              className="inline-flex items-center gap-1 rounded-xl border border-gray-300 px-3 py-1.5 font-semibold text-gray-700 transition hover:bg-gray-50"
+                            >
+                              <Eye className="h-3.5 w-3.5" /> View
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => startEditingBooking(booking)}
+                              className="inline-flex items-center gap-1 rounded-xl border border-blue-200 px-3 py-1.5 font-semibold text-blue-700 transition hover:bg-blue-50"
+                            >
+                              <Pencil className="h-3.5 w-3.5" /> Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteBooking(booking.id)}
+                              className="inline-flex items-center gap-1 rounded-xl border border-red-200 px-3 py-1.5 font-semibold text-red-700 transition hover:bg-red-50"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" /> Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {editingBookingId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-3xl rounded-3xl bg-white p-6 shadow-2xl">
+            <h3 className="mb-4 text-xl font-bold text-gray-900">Edit Booking</h3>
+            <div className="space-y-4">
+              <div className="grid gap-3 sm:grid-cols-3">
+                <input
+                  type="date"
+                  value={editState.date}
+                  onChange={(event) => setEditState((current) => ({ ...current, date: event.target.value }))}
                   className="rounded-2xl border border-gray-300 px-4 py-3 focus:border-green-600 focus:outline-none"
-                >
-                  {dayNames.map((dayName, index) => (
-                    <option key={dayName} value={index}>{dayName}</option>
-                  ))}
-                </select>
+                />
                 <select
-                  value={blockDraft.startTime}
-                  onChange={(event) => setBlockDraft((current) => ({ ...current, startTime: event.target.value }))}
+                  value={editState.startTime}
+                  onChange={(event) => {
+                    const nextStartTime = event.target.value;
+                    const nextEndTime = calculateEndTime(nextStartTime, calculateHoursBetween(editState.startTime, editState.endTime) || 2);
+                    setEditState((current) => ({ ...current, startTime: nextStartTime, endTime: endTimeSlots.includes(nextEndTime) ? nextEndTime : current.endTime }));
+                  }}
                   className="rounded-2xl border border-gray-300 px-4 py-3 focus:border-green-600 focus:outline-none"
                 >
                   {timeSlots.map((timeSlot) => (
@@ -831,203 +835,95 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
                   ))}
                 </select>
                 <select
-                  value={blockDraft.endTime}
-                  onChange={(event) => setBlockDraft((current) => ({ ...current, endTime: event.target.value }))}
+                  value={editState.endTime}
+                  onChange={(event) => setEditState((current) => ({ ...current, endTime: event.target.value }))}
                   className="rounded-2xl border border-gray-300 px-4 py-3 focus:border-green-600 focus:outline-none"
                 >
-                  {endTimeSlots.map((timeSlot) => (
-                    <option key={timeSlot} value={timeSlot}>{timeSlot}</option>
-                  ))}
+                  {endTimeSlots
+                    .filter((timeSlot) => calculateHoursBetween(editState.startTime, timeSlot) >= 1)
+                    .map((timeSlot) => (
+                      <option key={timeSlot} value={timeSlot}>{timeSlot}</option>
+                    ))}
                 </select>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <input
+                  type="text"
+                  value={editState.name}
+                  onChange={(event) => setEditState((current) => ({ ...current, name: event.target.value }))}
+                  className="rounded-2xl border border-gray-300 px-4 py-3 focus:border-green-600 focus:outline-none"
+                  placeholder="Customer name"
+                />
+                <input
+                  type="text"
+                  value={editState.teamName}
+                  onChange={(event) => setEditState((current) => ({ ...current, teamName: event.target.value }))}
+                  className="rounded-2xl border border-gray-300 px-4 py-3 focus:border-green-600 focus:outline-none"
+                  placeholder="Team name (internal)"
+                />
+                <input
+                  type="text"
+                  value={editState.paymentReference}
+                  onChange={(event) => setEditState((current) => ({ ...current, paymentReference: event.target.value }))}
+                  className="rounded-2xl border border-gray-300 px-4 py-3 focus:border-green-600 focus:outline-none"
+                  placeholder="Payment reference"
+                />
+              </div>
+              <select
+                value={editState.status}
+                onChange={(event) => setEditState((current) => ({ ...current, status: event.target.value as BookingEditState['status'] }))}
+                className="w-full rounded-2xl border border-gray-300 px-4 py-3 focus:border-green-600 focus:outline-none"
+              >
+                <option value="confirmed">confirmed</option>
+                <option value="pending">pending</option>
+                <option value="cancelled">cancelled</option>
+              </select>
+              <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={handleAddWeeklyBlock}
-                  className="rounded-2xl border border-green-300 bg-green-50 px-4 py-3 text-sm font-semibold text-green-700 transition hover:bg-green-100"
+                  onClick={() => void handleSaveBookingEdit(editingBookingId)}
+                  className="inline-flex items-center gap-2 rounded-2xl bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700"
                 >
-                  Add
+                  <Save className="h-4 w-4" /> Save
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditingBookingId(null)}
+                  className="inline-flex items-center gap-2 rounded-2xl border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                >
+                  Cancel
                 </button>
               </div>
-
-              <div className="mt-5 space-y-2">
-                {weeklyBlocks.map((block, index) => (
-                  <div key={`${block.dayOfWeek}-${block.startHour}-${block.endHour}-${index}`} className="flex items-center justify-between rounded-2xl border border-gray-200 px-4 py-3 text-sm text-gray-700">
-                    <span>{dayNames[block.dayOfWeek]} {hourToTime(block.startHour)} - {hourToTime(block.endHour)}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveWeeklyBlock(index)}
-                      className="rounded-xl border border-red-200 px-3 py-1 font-semibold text-red-700 transition hover:bg-red-50"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              {blockMessage && (
-                <div className="mt-4 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
-                  {blockMessage}
-                </div>
-              )}
-
-              <button
-                type="button"
-                onClick={handleSaveWeeklyBlocks}
-                disabled={savingBlocks}
-                className="mt-5 w-full rounded-2xl bg-gray-900 px-6 py-3 font-semibold text-white transition hover:bg-black disabled:bg-gray-500"
-              >
-                {savingBlocks ? 'Saving...' : 'Save Weekly Blocked Slots'}
-              </button>
             </div>
-
-            <div className="rounded-3xl bg-white p-8 shadow-xl">
-            <h2 className="mb-6 text-2xl font-bold text-gray-900">Calendar Bookings</h2>
-
-            {loadingBookings ? (
-              <p className="text-gray-600">Loading bookings...</p>
-            ) : bookings.length === 0 ? (
-              <p className="text-gray-600">No bookings saved yet.</p>
-            ) : (
-              <div className="space-y-4">
-                {bookings.map((booking) => (
-                  <div key={booking.id} className="rounded-2xl border border-gray-200 p-5">
-                    {editingBookingId === booking.id ? (
-                      <div className="space-y-4">
-                        <div className="grid gap-3 sm:grid-cols-4">
-                          <input
-                            type="date"
-                            value={editState.date}
-                            onChange={(event) => setEditState((current) => ({ ...current, date: event.target.value }))}
-                            className="rounded-2xl border border-gray-300 px-4 py-3 focus:border-green-600 focus:outline-none"
-                          />
-                          <select
-                            value={editState.startTime}
-                            onChange={(event) => {
-                              const nextStartTime = event.target.value;
-                              const nextEndTime = calculateEndTime(nextStartTime, calculateHoursBetween(editState.startTime, editState.endTime) || 2);
-                              setEditState((current) => ({ ...current, startTime: nextStartTime, endTime: endTimeSlots.includes(nextEndTime) ? nextEndTime : current.endTime }));
-                            }}
-                            className="rounded-2xl border border-gray-300 px-4 py-3 focus:border-green-600 focus:outline-none"
-                          >
-                            {timeSlots.map((timeSlot) => (
-                              <option key={timeSlot} value={timeSlot}>{timeSlot}</option>
-                            ))}
-                          </select>
-                          <select
-                            value={editState.endTime}
-                            onChange={(event) => setEditState((current) => ({ ...current, endTime: event.target.value }))}
-                            className="rounded-2xl border border-gray-300 px-4 py-3 focus:border-green-600 focus:outline-none"
-                          >
-                            {endTimeSlots
-                              .filter((timeSlot) => calculateHoursBetween(editState.startTime, timeSlot) >= 1)
-                              .map((timeSlot) => (
-                                <option key={timeSlot} value={timeSlot}>{timeSlot}</option>
-                              ))}
-                          </select>
-                        </div>
-
-                        <div className="grid gap-3 sm:grid-cols-3">
-                          <input
-                            type="text"
-                            value={editState.name}
-                            onChange={(event) => setEditState((current) => ({ ...current, name: event.target.value }))}
-                            className="rounded-2xl border border-gray-300 px-4 py-3 focus:border-green-600 focus:outline-none"
-                            placeholder="Customer name"
-                          />
-                          <input
-                            type="text"
-                            value={editState.teamName}
-                            onChange={(event) => setEditState((current) => ({ ...current, teamName: event.target.value }))}
-                            className="rounded-2xl border border-gray-300 px-4 py-3 focus:border-green-600 focus:outline-none"
-                            placeholder="Team name (internal)"
-                          />
-                          <input
-                            type="text"
-                            value={editState.paymentReference}
-                            onChange={(event) => setEditState((current) => ({ ...current, paymentReference: event.target.value }))}
-                            className="rounded-2xl border border-gray-300 px-4 py-3 focus:border-green-600 focus:outline-none"
-                            placeholder="Payment reference"
-                          />
-                          <select
-                            value={editState.status}
-                            onChange={(event) => setEditState((current) => ({ ...current, status: event.target.value as BookingEditState['status'] }))}
-                            className="rounded-2xl border border-gray-300 px-4 py-3 focus:border-green-600 focus:outline-none"
-                          >
-                            <option value="confirmed">confirmed</option>
-                            <option value="pending">pending</option>
-                            <option value="cancelled">cancelled</option>
-                          </select>
-                        </div>
-
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => void handleSaveBookingEdit(booking.id)}
-                            className="inline-flex items-center gap-2 rounded-2xl bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700"
-                          >
-                            <Save className="h-4 w-4" /> Save
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setEditingBookingId(null)}
-                            className="inline-flex items-center gap-2 rounded-2xl border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-                          >
-                            Cancel Edit
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                        <div>
-                          <div className="flex items-center gap-3">
-                            <p className="text-lg font-semibold text-gray-900">{booking.date} from {booking.time} to {booking.endTime || calculateEndTime(booking.time, booking.duration)}</p>
-                            <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                              booking.status === 'confirmed'
-                                ? 'bg-green-100 text-green-700'
-                                : booking.status === 'cancelled'
-                                  ? 'bg-red-100 text-red-700'
-                                  : 'bg-yellow-100 text-yellow-700'
-                            }`}>
-                              {booking.status}
-                            </span>
-                          </div>
-                          <p className="mt-2 text-sm text-gray-600">Duration: {booking.duration} hours</p>
-                          {booking.name && <p className="text-sm text-gray-600">Customer: {booking.name}</p>}
-                          {booking.paymentReference && <p className="text-sm text-gray-600">Payment ref: {booking.paymentReference}</p>}
-                          {booking.recurringSeriesId && <p className="text-xs text-gray-500">Recurring booking series</p>}
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            type="button"
-                            onClick={() => startEditingBooking(booking)}
-                            className="inline-flex items-center gap-2 rounded-2xl border border-blue-200 px-4 py-2 text-sm font-semibold text-blue-700 transition hover:bg-blue-50"
-                          >
-                            <Pencil className="h-4 w-4" /> Edit
-                          </button>
-                          {booking.status !== 'cancelled' && (
-                            <button
-                              onClick={() => handleCancelBooking(booking.id)}
-                              className="inline-flex items-center gap-2 rounded-2xl border border-red-200 px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-50"
-                            >
-                              <XCircle className="h-4 w-4" /> Cancel
-                            </button>
-                          )}
-                          <button
-                            onClick={() => handleDeleteBooking(booking.id)}
-                            className="inline-flex items-center gap-2 rounded-2xl border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-                          >
-                            <Trash2 className="h-4 w-4" /> Delete
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
           </div>
         </div>
-      </div>
+      )}
+
+      {selectedBooking && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl">
+            <h3 className="mb-4 text-xl font-bold text-gray-900">Booking Details</h3>
+            <div className="space-y-2 text-sm text-gray-700">
+              <p><span className="font-semibold text-gray-900">Date:</span> {selectedBooking.date}</p>
+              <p><span className="font-semibold text-gray-900">Time:</span> {selectedBooking.time} - {selectedBooking.endTime || calculateEndTime(selectedBooking.time, selectedBooking.duration)}</p>
+              <p><span className="font-semibold text-gray-900">Duration:</span> {selectedBooking.duration} hours</p>
+              <p><span className="font-semibold text-gray-900">Customer:</span> {selectedBooking.name || '-'}</p>
+              <p><span className="font-semibold text-gray-900">Team:</span> {selectedBooking.teamName || '-'}</p>
+              <p><span className="font-semibold text-gray-900">Status:</span> {selectedBooking.status}</p>
+              <p><span className="font-semibold text-gray-900">Payment ref:</span> {selectedBooking.paymentReference || '-'}</p>
+              <p><span className="font-semibold text-gray-900">Amount:</span> {selectedBooking.amount ? `RWF ${selectedBooking.amount.toLocaleString()}` : '-'}</p>
+              <p><span className="font-semibold text-gray-900">Recurring:</span> {selectedBooking.recurringSeriesId ? 'Yes' : 'No'}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSelectedBookingId(null)}
+              className="mt-5 rounded-2xl border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
