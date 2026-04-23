@@ -9,7 +9,9 @@
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
     "preview": "npx vite preview",
     "test": "vitest",
-    "test:ui": "vitest --ui"
+    "test:ui": "vitest --ui",
+    "firestore:deploy-rules": "npx firebase-tools deploy --only firestore:rules",
+    "firestore:show-rules": "npx firebase-tools firestore:rules:get"
   },
   "dependencies": {
     "@emotion/react": "^11.13.3",

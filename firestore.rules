@@ -1,0 +1,27 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email != null
+        && request.auth.token.email == "sokazone@outlook.com";
+    }
+
+    // Public calendar reads, admin-only writes
+    match /bookings/{bookingId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Weekly block settings used by booking calendar
+    match /settings/{docId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Deny any other collection/document by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
