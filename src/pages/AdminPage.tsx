@@ -427,6 +427,32 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
     ? bookings.find((booking) => booking.id === selectedBookingId) || null
     : null;
 
+  type DisplayRow =
+    | { kind: 'single'; booking: BookingRecord }
+    | { kind: 'series'; seriesId: string; bookings: BookingRecord[] };
+
+  const displayRows: DisplayRow[] = (() => {
+    const seriesMap = new Map<string, BookingRecord[]>();
+    const rows: DisplayRow[] = [];
+
+    for (const booking of bookings) {
+      if (booking.recurringSeriesId) {
+        const existing = seriesMap.get(booking.recurringSeriesId);
+        if (existing) {
+          existing.push(booking);
+        } else {
+          const seriesGroup: BookingRecord[] = [booking];
+          seriesMap.set(booking.recurringSeriesId, seriesGroup);
+          rows.push({ kind: 'series', seriesId: booking.recurringSeriesId, bookings: seriesGroup });
+        }
+      } else {
+        rows.push({ kind: 'single', booking });
+      }
+    }
+
+    return rows;
+  })();
+
   const handleDeleteBooking = async (bookingId: string) => {
     try {
       await deleteDoc(doc(db, 'bookings', bookingId));
@@ -434,6 +460,19 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
     } catch (error) {
       console.error('Error deleting booking:', error);
       setActionError(getPermissionAwareErrorMessage(error, 'Failed to delete booking.'));
+    }
+  };
+
+  const handleDeleteSeries = async (seriesId: string) => {
+    try {
+      const seriesBookings = bookings.filter((booking) => booking.recurringSeriesId === seriesId);
+      const batch = writeBatch(db);
+      seriesBookings.forEach((booking) => batch.delete(doc(db, 'bookings', booking.id)));
+      await batch.commit();
+      await loadBookings();
+    } catch (error) {
+      console.error('Error deleting recurring series:', error);
+      setActionError(getPermissionAwareErrorMessage(error, 'Failed to delete recurring series.'));
     }
   };
 
@@ -755,58 +794,127 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 bg-white">
-                    {bookings.map((booking) => (
-                      <tr key={booking.id} className="align-top">
-                        <td className="px-4 py-3 text-gray-800">{booking.date}</td>
-                        <td className="px-4 py-3 text-gray-800">{booking.time} - {booking.endTime || calculateEndTime(booking.time, booking.duration)}</td>
-                        <td className="px-4 py-3 text-gray-800">{booking.duration}h</td>
-                        <td className="px-4 py-3 text-gray-800">{booking.name || '-'}</td>
-                        <td className="px-4 py-3 text-gray-800">{booking.teamName || '-'}</td>
-                        <td className="px-4 py-3">
-                          <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                            booking.status === 'confirmed'
-                              ? 'bg-green-100 text-green-700'
-                              : booking.status === 'cancelled'
-                                ? 'bg-red-100 text-red-700'
-                                : 'bg-yellow-100 text-yellow-700'
-                          }`}>
-                            {booking.status}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-gray-700">{booking.paymentReference || '-'}</td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <div className="flex items-center gap-2 flex-nowrap">
-                            <button
-                              type="button"
-                              onClick={() => setSelectedBookingId(booking.id)}
-                              aria-label="View booking"
-                              title="View"
-                              className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-gray-300 text-gray-700 transition hover:bg-gray-50"
-                            >
-                              <Eye className="h-4 w-4" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => startEditingBooking(booking)}
-                              aria-label="Edit booking"
-                              title="Edit"
-                              className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-blue-200 text-blue-700 transition hover:bg-blue-50"
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteBooking(booking.id)}
-                              aria-label="Delete booking"
-                              title="Delete"
-                              className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-red-200 text-red-700 transition hover:bg-red-50"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                    {displayRows.map((row) => {
+                      if (row.kind === 'series') {
+                        const first = row.bookings[0];
+                        const last = row.bookings[row.bookings.length - 1];
+                        const statusBadgeClass = first.status === 'confirmed'
+                          ? 'bg-green-100 text-green-700'
+                          : first.status === 'cancelled'
+                            ? 'bg-red-100 text-red-700'
+                            : 'bg-yellow-100 text-yellow-700';
+
+                        return (
+                          <tr key={row.seriesId} className="align-top bg-blue-50/40">
+                            <td className="px-4 py-3 text-gray-800">
+                              <div>{first.date}</div>
+                              <div className="text-xs text-gray-500">to {last.date}</div>
+                            </td>
+                            <td className="px-4 py-3 text-gray-800">{first.time} - {first.endTime || calculateEndTime(first.time, first.duration)}</td>
+                            <td className="px-4 py-3 text-gray-800">
+                              <div>{first.duration}h</div>
+                              <span className="mt-1 inline-block rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
+                                Recurring · {row.bookings.length} sessions
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-gray-800">{first.name || '-'}</td>
+                            <td className="px-4 py-3 text-gray-800">{first.teamName || '-'}</td>
+                            <td className="px-4 py-3">
+                              <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusBadgeClass}`}>
+                                {first.status}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-gray-700">{first.paymentReference || '-'}</td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <div className="flex items-center gap-2 flex-nowrap">
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedBookingId(first.id)}
+                                  aria-label="View recurring booking"
+                                  title="View"
+                                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-gray-300 text-gray-700 transition hover:bg-gray-50"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => startEditingBooking(first)}
+                                  aria-label="Edit recurring booking"
+                                  title="Edit"
+                                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-blue-200 text-blue-700 transition hover:bg-blue-50"
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => void handleDeleteSeries(row.seriesId)}
+                                  aria-label="Delete recurring series"
+                                  title="Delete series"
+                                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-red-200 text-red-700 transition hover:bg-red-50"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      }
+
+                      const { booking } = row;
+
+                      return (
+                        <tr key={booking.id} className="align-top">
+                          <td className="px-4 py-3 text-gray-800">{booking.date}</td>
+                          <td className="px-4 py-3 text-gray-800">{booking.time} - {booking.endTime || calculateEndTime(booking.time, booking.duration)}</td>
+                          <td className="px-4 py-3 text-gray-800">{booking.duration}h</td>
+                          <td className="px-4 py-3 text-gray-800">{booking.name || '-'}</td>
+                          <td className="px-4 py-3 text-gray-800">{booking.teamName || '-'}</td>
+                          <td className="px-4 py-3">
+                            <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                              booking.status === 'confirmed'
+                                ? 'bg-green-100 text-green-700'
+                                : booking.status === 'cancelled'
+                                  ? 'bg-red-100 text-red-700'
+                                  : 'bg-yellow-100 text-yellow-700'
+                            }`}>
+                              {booking.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-gray-700">{booking.paymentReference || '-'}</td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <div className="flex items-center gap-2 flex-nowrap">
+                              <button
+                                type="button"
+                                onClick={() => setSelectedBookingId(booking.id)}
+                                aria-label="View booking"
+                                title="View"
+                                className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-gray-300 text-gray-700 transition hover:bg-gray-50"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => startEditingBooking(booking)}
+                                aria-label="Edit booking"
+                                title="Edit"
+                                className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-blue-200 text-blue-700 transition hover:bg-blue-50"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteBooking(booking.id)}
+                                aria-label="Delete booking"
+                                title="Delete"
+                                className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-red-200 text-red-700 transition hover:bg-red-50"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
