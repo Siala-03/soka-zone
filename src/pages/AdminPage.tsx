@@ -102,6 +102,18 @@ function calculateHoursBetween(startTime: string, endTime: string): number {
   return timeToHour(endTime) - timeToHour(startTime);
 }
 
+function getPermissionAwareErrorMessage(error: unknown, fallback: string): string {
+  const errorCode = typeof error === 'object' && error !== null && 'code' in error
+    ? String((error as { code?: unknown }).code)
+    : '';
+
+  if (errorCode === 'permission-denied') {
+    return 'Permission denied by Firestore rules. Ensure your admin account has write access to bookings and settings/calendarBlocks.';
+  }
+
+  return fallback;
+}
+
 export function AdminPage({ onBackHome }: AdminPageProps) {
   const [loginIdentifier, setLoginIdentifier] = useState('');
   const [password, setPassword] = useState('');
@@ -210,7 +222,7 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
       setWeeklyBlocks(normalized.length > 0 ? normalized : defaultWeeklyBlocks);
     } catch (error) {
       console.error('Error loading weekly blocks:', error);
-      setBlockMessage('Failed to load weekly blocked slots.');
+      setBlockMessage(getPermissionAwareErrorMessage(error, 'Failed to load weekly blocked slots.'));
     }
   };
 
@@ -227,7 +239,7 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
       setBookings(records);
     } catch (error) {
       console.error('Error loading bookings:', error);
-      setActionError('Failed to load bookings.');
+      setActionError(getPermissionAwareErrorMessage(error, 'Failed to load bookings.'));
     } finally {
       setLoadingBookings(false);
     }
@@ -388,7 +400,7 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
       await loadBookings();
     } catch (error) {
       console.error('Error creating booking:', error);
-      setActionError('Failed to save booking.');
+      setActionError(getPermissionAwareErrorMessage(error, 'Failed to save booking.'));
     } finally {
       setSaving(false);
     }
@@ -437,7 +449,7 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
       await loadBookings();
     } catch (error) {
       console.error('Error editing booking:', error);
-      setActionError('Failed to save booking changes.');
+      setActionError(getPermissionAwareErrorMessage(error, 'Failed to save booking changes.'));
     }
   };
 
@@ -458,7 +470,7 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
       setBlockMessage('Weekly blocked slots saved.');
     } catch (error) {
       console.error('Error saving weekly blocks:', error);
-      setBlockMessage('Failed to save weekly blocked slots.');
+      setBlockMessage(getPermissionAwareErrorMessage(error, 'Failed to save weekly blocked slots.'));
     } finally {
       setSavingBlocks(false);
     }
@@ -497,7 +509,7 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
       await loadBookings();
     } catch (error) {
       console.error('Error cancelling booking:', error);
-      setActionError('Failed to cancel booking.');
+      setActionError(getPermissionAwareErrorMessage(error, 'Failed to cancel booking.'));
     }
   };
 
@@ -507,7 +519,7 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
       await loadBookings();
     } catch (error) {
       console.error('Error deleting booking:', error);
-      setActionError('Failed to delete booking.');
+      setActionError(getPermissionAwareErrorMessage(error, 'Failed to delete booking.'));
     }
   };
 
