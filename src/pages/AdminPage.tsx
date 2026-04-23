@@ -774,28 +774,34 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-gray-700">{booking.paymentReference || '-'}</td>
-                        <td className="px-4 py-3">
-                          <div className="flex flex-wrap gap-2">
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <div className="flex items-center gap-2 flex-nowrap">
                             <button
                               type="button"
                               onClick={() => setSelectedBookingId(booking.id)}
-                              className="inline-flex items-center gap-1 rounded-xl border border-gray-300 px-3 py-1.5 font-semibold text-gray-700 transition hover:bg-gray-50"
+                              aria-label="View booking"
+                              title="View"
+                              className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-gray-300 text-gray-700 transition hover:bg-gray-50"
                             >
-                              <Eye className="h-3.5 w-3.5" /> View
+                              <Eye className="h-4 w-4" />
                             </button>
                             <button
                               type="button"
                               onClick={() => startEditingBooking(booking)}
-                              className="inline-flex items-center gap-1 rounded-xl border border-blue-200 px-3 py-1.5 font-semibold text-blue-700 transition hover:bg-blue-50"
+                              aria-label="Edit booking"
+                              title="Edit"
+                              className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-blue-200 text-blue-700 transition hover:bg-blue-50"
                             >
-                              <Pencil className="h-3.5 w-3.5" /> Edit
+                              <Pencil className="h-4 w-4" />
                             </button>
                             <button
                               type="button"
                               onClick={() => handleDeleteBooking(booking.id)}
-                              className="inline-flex items-center gap-1 rounded-xl border border-red-200 px-3 py-1.5 font-semibold text-red-700 transition hover:bg-red-50"
+                              aria-label="Delete booking"
+                              title="Delete"
+                              className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-red-200 text-red-700 transition hover:bg-red-50"
                             >
-                              <Trash2 className="h-3.5 w-3.5" /> Delete
+                              <Trash2 className="h-4 w-4" />
                             </button>
                           </div>
                         </td>
