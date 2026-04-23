@@ -175,3 +175,25 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #555;
 }
+
+.admin-table-scroll {
+  scrollbar-color: #166534 #e5e7eb;
+  scrollbar-width: thin;
+}
+
+.admin-table-scroll::-webkit-scrollbar {
+  height: 10px;
+}
+
+.admin-table-scroll::-webkit-scrollbar-track {
+  background: #e5e7eb;
+}
+
+.admin-table-scroll::-webkit-scrollbar-thumb {
+  background: #166534;
+  border-radius: 9999px;
+}
+
+.admin-table-scroll::-webkit-scrollbar-thumb:hover {
+  background: #14532d;
+}
