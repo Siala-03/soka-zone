@@ -118,6 +118,7 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
     status: 'confirmed',
   });
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
+  const [selectedSeriesId, setSelectedSeriesId] = useState<string | null>(null);
   const [formState, setFormState] = useState({
     date: '',
     startTime: '',
@@ -396,19 +397,54 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
   };
 
   const handleDownloadBookings = () => {
-    const csvHeader = ['Date', 'Start Time', 'End Time', 'Duration', 'Customer Name', 'Team Name', 'Status', 'Payment Reference', 'Amount', 'Recurring Series'];
-    const csvRows = bookings.map((booking) => [
-      booking.date,
-      booking.time,
-      booking.endTime || calculateEndTime(booking.time, booking.duration),
-      booking.duration.toString(),
-      booking.name || '',
-      booking.teamName || '',
-      booking.status,
-      booking.paymentReference || '',
-      booking.amount?.toString() || '',
-      booking.recurringSeriesId || '',
-    ]);
+    const csvHeader = ['Date', 'Start Time', 'End Time', 'Duration', 'Customer Name', 'Team Name', 'Status', 'Payment Reference', 'Amount', 'Type'];
+
+    // Collapse recurring series into a single row per series
+    const seriesExportMap = new Map<string, BookingRecord[]>();
+    const csvRows: string[][] = [];
+
+    for (const booking of bookings) {
+      if (booking.recurringSeriesId) {
+        const existing = seriesExportMap.get(booking.recurringSeriesId);
+        if (existing) {
+          existing.push(booking);
+        } else {
+          seriesExportMap.set(booking.recurringSeriesId, [booking]);
+        }
+      } else {
+        csvRows.push([
+          booking.date,
+          booking.time,
+          booking.endTime || calculateEndTime(booking.time, booking.duration),
+          booking.duration.toString(),
+          booking.name || '',
+          booking.teamName || '',
+          booking.status,
+          booking.paymentReference || '',
+          booking.amount?.toString() || '',
+          'One-off',
+        ]);
+      }
+    }
+
+    for (const seriesBookings of seriesExportMap.values()) {
+      const first = seriesBookings[0];
+      const last = seriesBookings[seriesBookings.length - 1];
+      csvRows.push([
+        `${first.date} to ${last.date}`,
+        first.time,
+        first.endTime || calculateEndTime(first.time, first.duration),
+        first.duration.toString(),
+        first.name || '',
+        first.teamName || '',
+        first.status,
+        first.paymentReference || '',
+        first.amount?.toString() || '',
+        `Recurring (${seriesBookings.length} sessions)`,
+      ]);
+    }
+
+    csvRows.sort((a, b) => a[0].localeCompare(b[0]));
 
     const escapeCell = (value: string) => `"${value.replace(/"/g, '""')}"`;
     const csvContent = [csvHeader, ...csvRows].map((row) => row.map(escapeCell).join(',')).join('\n');
@@ -427,6 +463,37 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
     ? bookings.find((booking) => booking.id === selectedBookingId) || null
     : null;
 
+  const selectedSeries = selectedSeriesId
+    ? bookings.filter((booking) => booking.recurringSeriesId === selectedSeriesId)
+    : null;
+
+  // Group recurring bookings by series; keep individual bookings as-is
+  type DisplayRow =
+    | { kind: 'single'; booking: BookingRecord }
+    | { kind: 'series'; seriesId: string; bookings: BookingRecord[] };
+
+  const displayRows: DisplayRow[] = (() => {
+    const seriesMap = new Map<string, BookingRecord[]>();
+    const rows: DisplayRow[] = [];
+
+    for (const booking of bookings) {
+      if (booking.recurringSeriesId) {
+        const existing = seriesMap.get(booking.recurringSeriesId);
+        if (existing) {
+          existing.push(booking);
+        } else {
+          const seriesGroup: BookingRecord[] = [booking];
+          seriesMap.set(booking.recurringSeriesId, seriesGroup);
+          rows.push({ kind: 'series', seriesId: booking.recurringSeriesId, bookings: seriesGroup });
+        }
+      } else {
+        rows.push({ kind: 'single', booking });
+      }
+    }
+
+    return rows;
+  })();
+
   const handleDeleteBooking = async (bookingId: string) => {
     try {
       await deleteDoc(doc(db, 'bookings', bookingId));
@@ -434,6 +501,19 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
     } catch (error) {
       console.error('Error deleting booking:', error);
       setActionError(getPermissionAwareErrorMessage(error, 'Failed to delete booking.'));
+    }
+  };
+
+  const handleDeleteSeries = async (seriesId: string) => {
+    try {
+      const seriesBookings = bookings.filter((b) => b.recurringSeriesId === seriesId);
+      const batch = writeBatch(db);
+      seriesBookings.forEach((b) => batch.delete(doc(db, 'bookings', b.id)));
+      await batch.commit();
+      await loadBookings();
+    } catch (error) {
+      console.error('Error deleting recurring series:', error);
+      setActionError(getPermissionAwareErrorMessage(error, 'Failed to delete recurring series.'));
     }
   };
 
@@ -755,52 +835,106 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 bg-white">
-                    {bookings.map((booking) => (
-                      <tr key={booking.id} className="align-top">
-                        <td className="px-4 py-3 text-gray-800">{booking.date}</td>
-                        <td className="px-4 py-3 text-gray-800">{booking.time} - {booking.endTime || calculateEndTime(booking.time, booking.duration)}</td>
-                        <td className="px-4 py-3 text-gray-800">{booking.duration}h</td>
-                        <td className="px-4 py-3 text-gray-800">{booking.name || '-'}</td>
-                        <td className="px-4 py-3 text-gray-800">{booking.teamName || '-'}</td>
-                        <td className="px-4 py-3">
-                          <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                            booking.status === 'confirmed'
-                              ? 'bg-green-100 text-green-700'
-                              : booking.status === 'cancelled'
-                                ? 'bg-red-100 text-red-700'
-                                : 'bg-yellow-100 text-yellow-700'
-                          }`}>
-                            {booking.status}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-gray-700">{booking.paymentReference || '-'}</td>
-                        <td className="px-4 py-3">
-                          <div className="flex flex-wrap gap-2">
-                            <button
-                              type="button"
-                              onClick={() => setSelectedBookingId(booking.id)}
-                              className="inline-flex items-center gap-1 rounded-xl border border-gray-300 px-3 py-1.5 font-semibold text-gray-700 transition hover:bg-gray-50"
-                            >
-                              <Eye className="h-3.5 w-3.5" /> View
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => startEditingBooking(booking)}
-                              className="inline-flex items-center gap-1 rounded-xl border border-blue-200 px-3 py-1.5 font-semibold text-blue-700 transition hover:bg-blue-50"
-                            >
-                              <Pencil className="h-3.5 w-3.5" /> Edit
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteBooking(booking.id)}
-                              className="inline-flex items-center gap-1 rounded-xl border border-red-200 px-3 py-1.5 font-semibold text-red-700 transition hover:bg-red-50"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" /> Delete
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                    {displayRows.map((row) => {
+                      if (row.kind === 'series') {
+                        const first = row.bookings[0];
+                        const last = row.bookings[row.bookings.length - 1];
+                        const statusColor = first.status === 'confirmed'
+                          ? 'bg-green-100 text-green-700'
+                          : first.status === 'cancelled'
+                            ? 'bg-red-100 text-red-700'
+                            : 'bg-yellow-100 text-yellow-700';
+                        return (
+                          <tr key={row.seriesId} className="align-top bg-blue-50/40">
+                            <td className="px-4 py-3 text-gray-800">
+                              <div>{first.date}</div>
+                              <div className="text-xs text-gray-500">→ {last.date}</div>
+                            </td>
+                            <td className="px-4 py-3 text-gray-800">{first.time} - {first.endTime || calculateEndTime(first.time, first.duration)}</td>
+                            <td className="px-4 py-3 text-gray-800">
+                              <div>{first.duration}h</div>
+                              <span className="mt-1 inline-block rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
+                                Recurring · {row.bookings.length} sessions
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-gray-800">{first.name || '-'}</td>
+                            <td className="px-4 py-3 text-gray-800">{first.teamName || '-'}</td>
+                            <td className="px-4 py-3">
+                              <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusColor}`}>
+                                {first.status}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-gray-700">{first.paymentReference || '-'}</td>
+                            <td className="px-4 py-3">
+                              <div className="flex flex-wrap gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedSeriesId(row.seriesId)}
+                                  className="inline-flex items-center gap-1 rounded-xl border border-gray-300 px-3 py-1.5 font-semibold text-gray-700 transition hover:bg-gray-50"
+                                >
+                                  <Eye className="h-3.5 w-3.5" /> View
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => void handleDeleteSeries(row.seriesId)}
+                                  className="inline-flex items-center gap-1 rounded-xl border border-red-200 px-3 py-1.5 font-semibold text-red-700 transition hover:bg-red-50"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" /> Delete All
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      }
+
+                      const { booking } = row;
+                      return (
+                        <tr key={booking.id} className="align-top">
+                          <td className="px-4 py-3 text-gray-800">{booking.date}</td>
+                          <td className="px-4 py-3 text-gray-800">{booking.time} - {booking.endTime || calculateEndTime(booking.time, booking.duration)}</td>
+                          <td className="px-4 py-3 text-gray-800">{booking.duration}h</td>
+                          <td className="px-4 py-3 text-gray-800">{booking.name || '-'}</td>
+                          <td className="px-4 py-3 text-gray-800">{booking.teamName || '-'}</td>
+                          <td className="px-4 py-3">
+                            <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                              booking.status === 'confirmed'
+                                ? 'bg-green-100 text-green-700'
+                                : booking.status === 'cancelled'
+                                  ? 'bg-red-100 text-red-700'
+                                  : 'bg-yellow-100 text-yellow-700'
+                            }`}>
+                              {booking.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-gray-700">{booking.paymentReference || '-'}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setSelectedBookingId(booking.id)}
+                                className="inline-flex items-center gap-1 rounded-xl border border-gray-300 px-3 py-1.5 font-semibold text-gray-700 transition hover:bg-gray-50"
+                              >
+                                <Eye className="h-3.5 w-3.5" /> View
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => startEditingBooking(booking)}
+                                className="inline-flex items-center gap-1 rounded-xl border border-blue-200 px-3 py-1.5 font-semibold text-blue-700 transition hover:bg-blue-50"
+                              >
+                                <Pencil className="h-3.5 w-3.5" /> Edit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteBooking(booking.id)}
+                                className="inline-flex items-center gap-1 rounded-xl border border-red-200 px-3 py-1.5 font-semibold text-red-700 transition hover:bg-red-50"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" /> Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -917,6 +1051,35 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
             <button
               type="button"
               onClick={() => setSelectedBookingId(null)}
+              className="mt-5 rounded-2xl border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {selectedSeries && selectedSeries.length > 0 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl">
+            <h3 className="mb-4 text-xl font-bold text-gray-900">Recurring Series Details</h3>
+            <div className="space-y-2 text-sm text-gray-700">
+              <p><span className="font-semibold text-gray-900">Team:</span> {selectedSeries[0].teamName || '-'}</p>
+              <p><span className="font-semibold text-gray-900">Customer:</span> {selectedSeries[0].name || '-'}</p>
+              <p><span className="font-semibold text-gray-900">Time slot:</span> {selectedSeries[0].time} - {selectedSeries[0].endTime || calculateEndTime(selectedSeries[0].time, selectedSeries[0].duration)}</p>
+              <p><span className="font-semibold text-gray-900">Duration:</span> {selectedSeries[0].duration} hours</p>
+              <p><span className="font-semibold text-gray-900">First session:</span> {selectedSeries[0].date}</p>
+              <p><span className="font-semibold text-gray-900">Last session:</span> {selectedSeries[selectedSeries.length - 1].date}</p>
+              <p><span className="font-semibold text-gray-900">Total sessions:</span> {selectedSeries.length}</p>
+              <p><span className="font-semibold text-gray-900">Status:</span> {selectedSeries[0].status}</p>
+              <p><span className="font-semibold text-gray-900">Payment ref:</span> {selectedSeries[0].paymentReference || '-'}</p>
+              {selectedSeries[0].amount !== undefined && (
+                <p><span className="font-semibold text-gray-900">Amount per session:</span> RWF {selectedSeries[0].amount.toLocaleString()}</p>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setSelectedSeriesId(null)}
               className="mt-5 rounded-2xl border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
             >
               Close
