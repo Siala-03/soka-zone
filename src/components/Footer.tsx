@@ -119,7 +119,7 @@ export function Footer({ onNavigate }: FooterProps) {
               </li>
               <li className="flex items-center gap-3">
                 <Mail className="w-5 h-5 text-green-500 flex-shrink-0" />
-                <span>sokazone@outlook.com</span>
+                <span>kodiscan08@gmail.com</span>
               </li>
             </ul>
           </div>

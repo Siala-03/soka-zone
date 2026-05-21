@@ -5,9 +5,13 @@ import {
   SALES_PHONE,
   getBookingPriceQuote,
 } from '../utils/pricing';
+import { fetchMtnPaymentStatus, initiateMtnPayment } from '../utils/mtn';
 
 const heroImage = '/assets/field2.jpeg';
-const PESAPAL_PAYMENT_LINK = 'https://store.pesapal.com/sokazonepayment';
+const PAYMENT_POLL_ATTEMPTS = 8;
+const PAYMENT_POLL_DELAY_MS = 3000;
+const DEFAULT_MTN_PHONE = import.meta.env.VITE_MTN_SANDBOX_MSISDN || '250788123456';
+const DEFAULT_MTN_CURRENCY = import.meta.env.VITE_MTN_CURRENCY || 'EUR';
 const bookingRates = [
   { label: 'Mon-Thu 6am-4pm', amount: '50,000' },
   { label: 'Mon-Thu 4pm-10pm', amount: '70,000' },
@@ -21,6 +25,8 @@ export function BookPage() {
   const [selectedTime, setSelectedTime] = useState<string>('');
   const [duration, setDuration] = useState<number>(ONLINE_BOOKING_DURATION_HOURS);
   const [showContactSales, setShowContactSales] = useState<boolean>(false);
+  const [isProcessingPayment, setIsProcessingPayment] = useState<boolean>(false);
+  const [paymentStatusMessage, setPaymentStatusMessage] = useState<string>('');
 
   const priceQuote = getBookingPriceQuote('Standard', duration, {
     date: selectedDate,
@@ -32,7 +38,12 @@ export function BookPage() {
     setSelectedTime(time);
   };
 
-  const handleBookingSubmit = () => {
+  const wait = (delay: number) =>
+    new Promise<void>((resolve) => {
+      setTimeout(resolve, delay);
+    });
+
+  const handleBookingSubmit = async () => {
     if (showContactSales) {
       window.location.href = `tel:${SALES_PHONE}`;
       return;
@@ -43,7 +54,54 @@ export function BookPage() {
       return;
     }
 
-    window.location.href = PESAPAL_PAYMENT_LINK;
+    if (priceQuote.amount === null) {
+      alert('Please select a valid booking slot to continue with payment.');
+      return;
+    }
+
+    setIsProcessingPayment(true);
+    setPaymentStatusMessage('Creating MTN payment request...');
+
+    try {
+      const payment = await initiateMtnPayment({
+        amount: priceQuote.amount,
+        currency: DEFAULT_MTN_CURRENCY,
+        phone: DEFAULT_MTN_PHONE,
+        payerMessage: `Soka Zone booking for ${selectedDate} at ${selectedTime}`,
+        payeeNote: 'Soka Zone booking',
+        externalId: `BOOK-${Date.now()}`,
+      });
+
+      let resolvedStatus: 'SUCCESSFUL' | 'FAILED' | 'PENDING' = 'PENDING';
+
+      for (let attempt = 1; attempt <= PAYMENT_POLL_ATTEMPTS; attempt += 1) {
+        setPaymentStatusMessage(`Waiting for MTN confirmation (${attempt}/${PAYMENT_POLL_ATTEMPTS})...`);
+        await wait(PAYMENT_POLL_DELAY_MS);
+
+        const status = await fetchMtnPaymentStatus(payment.referenceId);
+        if (status.status === 'SUCCESSFUL' || status.status === 'FAILED') {
+          resolvedStatus = status.status;
+          break;
+        }
+      }
+
+      if (resolvedStatus === 'SUCCESSFUL') {
+        setPaymentStatusMessage('Payment successful. Booking can now be confirmed.');
+        alert('MTN payment successful. Your booking is ready for confirmation.');
+      } else if (resolvedStatus === 'FAILED') {
+        setPaymentStatusMessage('Payment failed. Please retry.');
+        alert('MTN payment failed. Please try again.');
+      } else {
+        setPaymentStatusMessage('Payment is still pending. Please check again shortly.');
+        alert('Payment is still pending. You can retry status check in a few moments.');
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to process MTN payment.';
+      setPaymentStatusMessage(message);
+      alert(message);
+    } finally {
+      setIsProcessingPayment(false);
+    }
   };
 
   return (
@@ -56,7 +114,7 @@ export function BookPage() {
         <div className="relative h-full flex items-center justify-center text-center px-4">
           <div className="max-w-4xl">
             <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">Book Your Pitch and Pay Securely</h1>
-            <p className="text-xl text-white/95">Choose your slot and continue to PesaPal.</p>
+            <p className="text-xl text-white/95">Choose your slot and pay via MTN MoMo sandbox.</p>
           </div>
         </div>
       </section>
@@ -152,11 +210,15 @@ export function BookPage() {
                   </div>
                   <button
                     onClick={handleBookingSubmit}
-                    className="rounded-2xl bg-green-600 px-6 py-4 font-semibold text-white shadow-lg transition hover:bg-green-700"
+                    disabled={isProcessingPayment}
+                    className="rounded-2xl bg-green-600 px-6 py-4 font-semibold text-white shadow-lg transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-70"
                   >
-                    {showContactSales ? 'Contact Sales' : 'Continue to Payment'}
+                    {showContactSales ? 'Contact Sales' : isProcessingPayment ? 'Processing Payment...' : 'Pay with MTN'}
                   </button>
                 </div>
+                {paymentStatusMessage && (
+                  <p className="mt-4 text-sm text-gray-600">{paymentStatusMessage}</p>
+                )}
               </div>
             </div>
           </div>
