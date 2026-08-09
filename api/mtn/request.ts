@@ -3,7 +3,7 @@ import { getMtnAccessToken, getMtnServerConfig, normalizeMsisdn, sendApiError } 
 
 declare const process: { env: Record<string, string | undefined> };
 
-function toMoney(value: unknown): string {
+function toMoney(value: unknown): string | null {
   if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
     return value.toFixed(2);
   }
@@ -15,7 +15,7 @@ function toMoney(value: unknown): string {
     }
   }
 
-  return '100.00';
+  return null;
 }
 
 export default async function handler(req: any, res: any) {
@@ -33,15 +33,19 @@ export default async function handler(req: any, res: any) {
   }
 
   const amount = toMoney(paymentRequest.amount);
+  if (!amount) {
+    return res.status(400).json({ error: 'amount must be a positive number' });
+  }
 
   try {
     const token = await getMtnAccessToken(req);
     const config = getMtnServerConfig(req);
     const referenceId = crypto.randomUUID();
+    const defaultCurrency = config.targetEnvironment === 'production' ? 'RWF' : 'EUR';
 
     const payload = {
       amount,
-      currency: String(paymentRequest.currency || process.env.MTN_CURRENCY || 'EUR'),
+      currency: String(paymentRequest.currency || process.env.MTN_CURRENCY || defaultCurrency),
       externalId: String(paymentRequest.externalId || `SKZ-${Date.now()}`),
       payer: {
         partyIdType: 'MSISDN',

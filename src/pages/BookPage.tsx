@@ -1,17 +1,25 @@
 import { useState } from 'react';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { db } from '../firebase';
 import { BookingCalendar } from '../components/BookingCalendar';
 import {
   ONLINE_BOOKING_DURATION_HOURS,
   SALES_PHONE,
   getBookingPriceQuote,
 } from '../utils/pricing';
-import { fetchMtnPaymentStatus, initiateMtnPayment } from '../utils/mtn';
+import {
+  fetchMtnPaymentStatus,
+  initiateMtnPayment,
+  isValidRwandaMsisdn,
+  normalizeRwandaMsisdn,
+} from '../utils/mtn';
 
 const heroImage = '/assets/field2.jpeg';
 const PAYMENT_POLL_ATTEMPTS = 8;
 const PAYMENT_POLL_DELAY_MS = 3000;
-const DEFAULT_MTN_PHONE = import.meta.env.VITE_MTN_SANDBOX_MSISDN || '250788123456';
-const DEFAULT_MTN_CURRENCY = import.meta.env.VITE_MTN_CURRENCY || 'EUR';
+// Dev/sandbox convenience only: pre-fills the phone field, never used as a silent fallback.
+const SANDBOX_MSISDN_HINT = import.meta.env.VITE_MTN_SANDBOX_MSISDN || '';
+const MTN_CURRENCY_OVERRIDE = import.meta.env.VITE_MTN_CURRENCY || undefined;
 const bookingRates = [
   { label: 'Mon-Thu 6am-4pm', amount: '50,000' },
   { label: 'Mon-Thu 4pm-10pm', amount: '70,000' },
@@ -27,6 +35,9 @@ export function BookPage() {
   const [showContactSales, setShowContactSales] = useState<boolean>(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState<boolean>(false);
   const [paymentStatusMessage, setPaymentStatusMessage] = useState<string>('');
+  const [customerName, setCustomerName] = useState<string>('');
+  const [customerEmail, setCustomerEmail] = useState<string>('');
+  const [customerPhone, setCustomerPhone] = useState<string>(SANDBOX_MSISDN_HINT);
 
   const priceQuote = getBookingPriceQuote('Standard', duration, {
     date: selectedDate,
@@ -59,17 +70,30 @@ export function BookPage() {
       return;
     }
 
+    if (!customerName.trim()) {
+      alert('Please enter your name.');
+      return;
+    }
+
+    if (!isValidRwandaMsisdn(customerPhone)) {
+      alert('Please enter a valid Rwanda MTN/Airtel phone number (e.g. 078XXXXXXX).');
+      return;
+    }
+
+    const normalizedPhone = normalizeRwandaMsisdn(customerPhone);
+    const externalId = `BOOK-${Date.now()}`;
+
     setIsProcessingPayment(true);
     setPaymentStatusMessage('Creating MTN payment request...');
 
     try {
       const payment = await initiateMtnPayment({
         amount: priceQuote.amount,
-        currency: DEFAULT_MTN_CURRENCY,
-        phone: DEFAULT_MTN_PHONE,
+        currency: MTN_CURRENCY_OVERRIDE,
+        phone: normalizedPhone,
         payerMessage: `Soka Zone booking for ${selectedDate} at ${selectedTime}`,
         payeeNote: 'Soka Zone booking',
-        externalId: `BOOK-${Date.now()}`,
+        externalId,
       });
 
       let resolvedStatus: 'SUCCESSFUL' | 'FAILED' | 'PENDING' = 'PENDING';
@@ -86,8 +110,32 @@ export function BookPage() {
       }
 
       if (resolvedStatus === 'SUCCESSFUL') {
-        setPaymentStatusMessage('Payment successful. Booking can now be confirmed.');
-        alert('MTN payment successful. Your booking is ready for confirmation.');
+        try {
+          await addDoc(collection(db, 'bookings'), {
+            date: selectedDate,
+            time: selectedTime,
+            duration,
+            pitch: 'Standard',
+            name: customerName.trim(),
+            phone: normalizedPhone,
+            email: customerEmail.trim(),
+            status: 'confirmed',
+            amount: priceQuote.amount,
+            referenceId: payment.referenceId,
+            externalId,
+            createdAt: serverTimestamp(),
+          });
+          setPaymentStatusMessage('Payment successful. Your booking is confirmed.');
+          alert('MTN payment successful. Your booking is confirmed.');
+        } catch (persistError) {
+          console.error('Payment succeeded but booking could not be saved:', persistError);
+          setPaymentStatusMessage(
+            `Payment successful, but we could not save your booking automatically. Please call ${SALES_PHONE} with reference ${payment.referenceId}.`
+          );
+          alert(
+            `Payment successful, but we could not save your booking automatically. Please call ${SALES_PHONE} and quote reference ${payment.referenceId}.`
+          );
+        }
       } else if (resolvedStatus === 'FAILED') {
         setPaymentStatusMessage('Payment failed. Please retry.');
         alert('MTN payment failed. Please try again.');
@@ -114,7 +162,7 @@ export function BookPage() {
         <div className="relative h-full flex items-center justify-center text-center px-4">
           <div className="max-w-4xl">
             <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">Book Your Pitch and Pay Securely</h1>
-            <p className="text-xl text-white/95">Choose your slot and pay via MTN MoMo sandbox.</p>
+            <p className="text-xl text-white/95">Choose your slot and pay via MTN Mobile Money.</p>
           </div>
         </div>
       </section>
@@ -188,6 +236,38 @@ export function BookPage() {
                   <label className="block text-sm font-semibold text-gray-900 mb-2">Select Date & Time</label>
                   <BookingCalendar duration={duration} onDateTimeSelect={handleDateTimeSelect} />
                 </div>
+
+                {!showContactSales && (
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">Your Details</label>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <input
+                        type="text"
+                        placeholder="Full name"
+                        value={customerName}
+                        onChange={(e) => setCustomerName(e.target.value)}
+                        className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 focus:border-green-500 focus:outline-none"
+                      />
+                      <input
+                        type="email"
+                        placeholder="Email (optional)"
+                        value={customerEmail}
+                        onChange={(e) => setCustomerEmail(e.target.value)}
+                        className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 focus:border-green-500 focus:outline-none"
+                      />
+                      <input
+                        type="tel"
+                        placeholder="MTN/Airtel phone e.g. 078XXXXXXX"
+                        value={customerPhone}
+                        onChange={(e) => setCustomerPhone(e.target.value)}
+                        className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 focus:border-green-500 focus:outline-none sm:col-span-2"
+                      />
+                    </div>
+                    <p className="mt-2 text-xs text-gray-500">
+                      Payment will be requested on this phone number via MTN Mobile Money.
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="mt-8 rounded-3xl border border-gray-200 bg-gray-50 p-6">

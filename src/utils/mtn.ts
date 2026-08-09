@@ -15,9 +15,31 @@ function buildApiUrl(path: string): string {
 
 export type MtnPaymentStatus = 'PENDING' | 'SUCCESSFUL' | 'FAILED';
 
+export function normalizeRwandaMsisdn(phone: string): string {
+  const digitsOnly = phone.replace(/\D/g, '');
+
+  if (digitsOnly.startsWith('250') && digitsOnly.length === 12) {
+    return digitsOnly;
+  }
+
+  if (digitsOnly.startsWith('07') && digitsOnly.length === 10) {
+    return `25${digitsOnly}`;
+  }
+
+  if (digitsOnly.startsWith('7') && digitsOnly.length === 9) {
+    return `250${digitsOnly}`;
+  }
+
+  return digitsOnly;
+}
+
+export function isValidRwandaMsisdn(phone: string): boolean {
+  return /^2507\d{8}$/.test(normalizeRwandaMsisdn(phone));
+}
+
 export interface InitiateMtnPaymentPayload {
   amount: number;
-  currency: string;
+  currency?: string;
   phone: string;
   payerMessage?: string;
   payeeNote?: string;
